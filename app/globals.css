@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 349 61% 20%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 45 65% 57%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 45 65% 57%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 45 65% 57%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 349 61% 20%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 45 65% 57%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 45 65% 57%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 45 65% 57%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom colors for Validiz CRM */
+.bg-validiz-brown {
+  background-color: #4a171e;
+}
+
+.bg-validiz-mustard {
+  background-color: #e2b144;
+}
+
+.text-validiz-brown {
+  color: #4a171e;
+}
+
+.text-validiz-mustard {
+  color: #e2b144;
+}
+
+.border-validiz-brown {
+  border-color: #4a171e;
+}
+
+.border-validiz-mustard {
+  border-color: #e2b144;
+}
+
+.hover\:bg-validiz-brown:hover {
+  background-color: #4a171e;
+}
+
+.hover\:bg-validiz-mustard:hover {
+  background-color: #e2b144;
+}
+
+.focus\:ring-validiz-mustard:focus {
+  --tw-ring-color: #e2b144;
+}
