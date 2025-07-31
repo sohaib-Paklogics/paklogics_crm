@@ -1,0 +1,4 @@
+{
+    "extends": ["some-eslint-config", "prettier"]
+  }
+  
