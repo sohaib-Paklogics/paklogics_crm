@@ -1,23 +1,33 @@
 // utils/pagination.js
 
-export function getPagination(query) {
-  const page = parseInt(query.page) || 1;
-  const limit = parseInt(query.limit) || 10;
-  const skip = (page - 1) * limit;
-  return { page, limit, skip };
-}
+export const getPagination = (page, limit) => {
+  const pageNumber = parseInt(page) || 1;
+  const pageSize = parseInt(limit) || 10;
+  const skip = (pageNumber - 1) * pageSize;
 
-export function paginate(items, page, limit, total) {
   return {
-    data: items,
-    pagination: {
-      page: Number(page),
-      limit: Number(limit),
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
+    skip,
+    limit: pageSize,
+    page: pageNumber
   };
-}
+};
+
+export const paginate = (data, page, limit, total) => {
+  const pageNumber = parseInt(page) || 1;
+  const pageSize = parseInt(limit) || 10;
+
+  return {
+    data,
+    pagination: {
+      page: pageNumber,
+      limit: pageSize,
+      total,
+      pages: Math.ceil(total / pageSize),
+      hasNext: pageNumber * pageSize < total,
+      hasPrev: pageNumber > 1
+    }
+  };
+};
 
 export function buildFilter(query, searchableFields = []) {
   const filter = {

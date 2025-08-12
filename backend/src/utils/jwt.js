@@ -1,33 +1,18 @@
 import jwt from "jsonwebtoken";
-import process from "process";
+import crypto from "crypto";
 
-const DEFAULT_EXPIRES_IN = "7d"; // 7 days default expiration
+export const generateToken = (payload, expiresIn = "1d") => {
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
+};
 
-export const generateToken = (payload) => {
-  return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
-  });
+export const createSecretToken = (payload, expiresIn = "1h") => {
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
 export const verifyToken = (token) => {
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      throw new Error("Token has expired");
-    }
-    throw error;
-  }
+  return jwt.verify(token, process.env.JWT_SECRET);
 };
-
-// for 2FA
-export const createSecretToken = (payload) => {
-  return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: "24h",
-  });
-};
-
 
 export const generateSixDigitCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 999999).toString();
 };

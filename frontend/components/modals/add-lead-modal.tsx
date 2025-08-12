@@ -1,18 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useLeadStore } from "@/stores/lead-store";
-import { useUserStore } from "@/stores/user-store";
-import { leadSchema, type LeadFormData } from "@/types/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,148 +12,131 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useLeadStore } from "@/stores/lead-store";
 import { Loader2 } from "lucide-react";
-import useAuthStore from "@/stores/auth-store";
 
 interface AddLeadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function AddLeadModal({ open, onOpenChange }: AddLeadModalProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuthStore();
-  const { addLead } = useLeadStore();
-  const { users } = useUserStore();
-
-  const developers = users.filter((u) => u.role === "developer");
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-    reset,
-  } = useForm<LeadFormData>({
-    resolver: zodResolver(leadSchema),
-    defaultValues: {
-      status: "new",
-    },
+export function AddLeadModal({
+  open,
+  onOpenChange,
+  onSuccess,
+}: AddLeadModalProps) {
+  const { createLead, isLoading } = useLeadStore();
+  const [formData, setFormData] = useState({
+    clientName: "",
+    jobDescription: "",
+    source: "",
+    status: "New" as const,
+    assignedTo: "",
+    notes: "",
   });
 
-  const onSubmit = async (data: LeadFormData) => {
-    if (!user) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    const result = await createLead({
+      clientName: formData.clientName,
+      jobDescription: formData.jobDescription,
+      source: formData.source,
+      status: formData.status,
+      assignedTo: formData.assignedTo || undefined,
+      notes: formData.notes || undefined,
+    });
 
-      const assignedDeveloper = data.assignedDeveloperId
-        ? developers.find((dev) => dev.id === data.assignedDeveloperId)
-        : undefined;
-
-      const newLead = {
-        id: Math.random().toString(36).substr(2, 9),
-        clientName: data.clientName,
-        jobDescription: data.jobDescription,
-        source: data.source,
-        status: data.status,
-        assignedDeveloperId: data.assignedDeveloperId,
-        assignedDeveloper,
-        createdById: user.id,
-        createdBy: user,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        attachments: [],
-        notes: [],
-        history: [],
-      };
-
-      addLead(newLead);
-      reset();
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error creating lead:", error);
-    } finally {
-      setIsLoading(false);
+    if (result) {
+      // Reset form
+      setFormData({
+        clientName: "",
+        jobDescription: "",
+        source: "",
+        status: "New",
+        assignedTo: "",
+        notes: "",
+      });
+      onSuccess?.();
     }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle className="text-validiz-brown">Add New Lead</DialogTitle>
-          <DialogDescription>
-            Create a new lead opportunity. Fill in the details below.
-          </DialogDescription>
+          <DialogTitle>Add New Lead</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="clientName">Client Name *</Label>
               <Input
                 id="clientName"
-                placeholder="Enter client name"
-                className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-                {...register("clientName")}
+                value={formData.clientName}
+                onChange={(e) =>
+                  handleInputChange("clientName", e.target.value)
+                }
+                required
+                disabled={isLoading}
               />
-              {errors.clientName && (
-                <p className="text-sm text-red-600">
-                  {errors.clientName.message}
-                </p>
-              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="source">Lead Source *</Label>
+              <Label htmlFor="source">Source</Label>
               <Select
-                onValueChange={(value) => setValue("source", value as any)}
+                value={formData.source}
+                onValueChange={(value) => handleInputChange("source", value)}
+                disabled={isLoading}
               >
-                <SelectTrigger className="focus:ring-validiz-mustard focus:border-validiz-mustard">
+                <SelectTrigger>
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="website">Website</SelectItem>
-                  <SelectItem value="referral">Referral</SelectItem>
                   <SelectItem value="linkedin">LinkedIn</SelectItem>
                   <SelectItem value="job_board">Job Board</SelectItem>
+                  <SelectItem value="website">Company Website</SelectItem>
+                  <SelectItem value="referral">Referral</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.source && (
-                <p className="text-sm text-red-600">{errors.source.message}</p>
-              )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="jobDescription">Job Description *</Label>
+            <Label htmlFor="jobDescription">Job Description</Label>
             <Textarea
               id="jobDescription"
-              placeholder="Describe the job requirements and responsibilities"
-              rows={4}
-              className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-              {...register("jobDescription")}
+              value={formData.jobDescription}
+              onChange={(e) =>
+                handleInputChange("jobDescription", e.target.value)
+              }
+              rows={3}
+              disabled={isLoading}
             />
-            {errors.jobDescription && (
-              <p className="text-sm text-red-600">
-                {errors.jobDescription.message}
-              </p>
-            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
-                defaultValue="new"
-                onValueChange={(value) => setValue("status", value as any)}
+                value={formData.status}
+                onValueChange={(value) => handleInputChange("status", value)}
+                disabled={isLoading}
               >
-                <SelectTrigger className="focus:ring-validiz-mustard focus:border-validiz-mustard">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -180,28 +151,32 @@ export function AddLeadModal({ open, onOpenChange }: AddLeadModalProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="assignedDeveloperId">Assign Developer</Label>
-              <Select
-                onValueChange={(value) =>
-                  setValue("assignedDeveloperId", value)
+              <Label htmlFor="assignedTo">Assigned To</Label>
+              <Input
+                id="assignedTo"
+                value={formData.assignedTo}
+                onChange={(e) =>
+                  handleInputChange("assignedTo", e.target.value)
                 }
-              >
-                <SelectTrigger className="focus:ring-validiz-mustard focus:border-validiz-mustard">
-                  <SelectValue placeholder="Select developer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {developers.map((developer) => (
-                    <SelectItem key={developer.id} value={developer.id}>
-                      {developer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Enter assignee name"
+                disabled={isLoading}
+              />
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => handleInputChange("notes", e.target.value)}
+              rows={3}
+              placeholder="Add any additional notes..."
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2">
             <Button
               type="button"
               variant="outline"
@@ -210,19 +185,9 @@ export function AddLeadModal({ open, onOpenChange }: AddLeadModalProps) {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              className="bg-validiz-brown hover:bg-validiz-brown/90"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                "Create Lead"
-              )}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Add Lead
             </Button>
           </div>
         </form>

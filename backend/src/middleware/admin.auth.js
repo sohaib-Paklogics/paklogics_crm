@@ -1,6 +1,30 @@
 import jwt from "jsonwebtoken";
-import process from "process";
 import AdminUser from "../models/admin.model.js";
+import ApiError from "../utils/ApiError.js";
+import asyncHandler from "../utils/asyncHandler.js";
+import process from "process";
+
+const adminAuth = asyncHandler(async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      throw new ApiError(401, "Access token is required");
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await AdminUser.findById(decoded.id).select("-password");
+
+    if (!user || user.status !== "active") {
+      throw new ApiError(401, "Invalid or inactive user");
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    throw new ApiError(401, error || "Invalid token");
+  }
+});
 
 export async function protect(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -28,3 +52,5 @@ export function authorize(...roles) {
     next();
   };
 }
+
+export default adminAuth;

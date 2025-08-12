@@ -7,7 +7,7 @@ import process from "process";
 
 import routes from "./routes/index.js";
 import connectDB from "./config/database.js";
-import { errorHandler } from "./middleware/errorHandler.js";
+import errorHandler  from "./middleware/errorHandler.js";
 
 dotenv.config();
 

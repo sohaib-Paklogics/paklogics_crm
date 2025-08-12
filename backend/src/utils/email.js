@@ -1,8 +1,6 @@
 import nodemailer from "nodemailer";
-
 // Ensure process is defined (for environments like some bundlers or test runners)
 import process from "process";
-
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
@@ -12,7 +10,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
-
 const baseEmailTemplate = (content) => `
 <!DOCTYPE html>
 <html>
@@ -69,18 +66,15 @@ const baseEmailTemplate = (content) => `
 </body>
 </html>
 `;
-
 export const sendEmail = async (to, subject, html) => {
   const mailOptions = {
-    from: `"AI Driven" <${process.env.SMTP_USER}>`,
+    from: process.env.FROM_EMAIL,
     to,
     subject,
     html,
   };
-
   return await transporter.sendMail(mailOptions);
 };
-
 export const sendVerificationEmail = async (email, token) => {
   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
   const content = `
@@ -96,10 +90,8 @@ export const sendVerificationEmail = async (email, token) => {
     <p>This verification link will expire in 24 hours.</p>
     <p>If you didn't create an account with AI Driven, you can safely ignore this email.</p>
   `;
-
   return await sendEmail(email, "Verify Your Email - AI Driven", baseEmailTemplate(content));
 };
-
 export const sendPasswordResetEmail = async (email, token) => {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
   const content = `
@@ -115,24 +107,14 @@ export const sendPasswordResetEmail = async (email, token) => {
     <p>This password reset link will expire in 10 minutes.</p>
     <p>If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
   `;
-
   return await sendEmail(email, "Reset Your Password - Aqarlee", baseEmailTemplate(content));
 };
-
 export const send2FAEmail = async (email, code) => {
-  const content = `
-    <div class="header">
-      <h1>Your 2FA Code</h1>
-    </div>
-    <p>Use the following code to complete your sign-in:</p>
-    <div style="text-align: center; margin: 20px 0;">
-      <div style="display: inline-block; font-size: 24px; font-weight: bold; background: #f3f4f6; padding: 12px 24px; border-radius: 6px;">
-        ${code}
-      </div>
-    </div>
-    <p>This code is valid for the next 10 minutes. Please do not share it with anyone.</p>
-    <p>If you didn’t request this code, you can safely ignore this email.</p>
+  const subject = 'Your 2FA Verification Code';
+  const html = `
+    <h2>Verification Code</h2>
+    <p>Your 2FA verification code is: <strong>${code}</strong></p>
+    <p>This code will expire in 10 minutes.</p>
   `;
-
-  return await sendEmail(email, "Your 2FA Code - Aqarlee", baseEmailTemplate(content));
+  return await sendEmail(email, subject, html);
 };

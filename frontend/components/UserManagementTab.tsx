@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,8 +29,9 @@ import {
 } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+
 import { userSchema, type UserFormData, type UserRole } from "@/types/types";
-import { useUserStore } from "@/stores/user-store";
+
 import { Plus, MoreHorizontal, Edit, Trash2, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -39,13 +40,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import type { AdminUser } from "@/types/types";
+import { useUserStore } from "@/stores/user-store";
 
 export function UserManagementTab() {
-  const { users, addUser, updateUser, deleteUser } = useUserStore();
+  const { users, loading, fetchUsers, addUser, updateUser, deleteUser } =
+    useUserStore();
 
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    // initial load
+    fetchUsers().catch(console.error);
+  }, [fetchUsers]);
 
   const {
     register,
@@ -53,21 +62,33 @@ export function UserManagementTab() {
     formState: { errors },
     setValue,
     reset,
+    watch,
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
+    defaultValues: {
+      username: "",
+      email: "",
+      role: undefined as unknown as UserRole,
+      password: "",
+    },
   });
 
+  const roleValue = watch("role");
+
   const roles: { key: UserRole; label: string }[] = [
+    { key: "superadmin", label: "Super Admin" },
     { key: "admin", label: "Admin" },
-    { key: "bd", label: "Business Developer" },
+    { key: "business_developer", label: "Business Developer" },
     { key: "developer", label: "Developer" },
   ];
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
+      case "superadmin":
+        return "bg-purple-100 text-purple-800";
       case "admin":
         return "bg-red-100 text-red-800";
-      case "bd":
+      case "business_developer":
         return "bg-blue-100 text-blue-800";
       case "developer":
         return "bg-green-100 text-green-800";
@@ -77,48 +98,47 @@ export function UserManagementTab() {
   };
 
   const onSubmit = async (data: UserFormData) => {
-    setIsLoading(true);
+    setSaving(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       if (editingUser) {
-        updateUser(editingUser, {
-          name: data.name,
+        const updated = await updateUser(editingUser, {
+          username: data.username,
           email: data.email,
           role: data.role,
-          updatedAt: new Date().toISOString(),
         });
-        setEditingUser(null);
+        if (updated) {
+          setEditingUser(null);
+        }
       } else {
-        addUser({
-          id: Math.random().toString(36).substr(2, 9),
-          name: data.name,
+        await addUser({
+          username: data.username,
           email: data.email,
           role: data.role,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
+          // password should be accepted by your API on create
+          password: data.password,
+        } as Partial<AdminUser>);
       }
       reset();
       setIsAddUserOpen(false);
     } finally {
-      setIsLoading(false);
+      setSaving(false);
     }
   };
 
   const handleEdit = (userId: string) => {
     const user = users.find((u) => u.id === userId);
     if (user) {
-      setValue("name", user.name);
+      setValue("username", user.username);
       setValue("email", user.email);
-      setValue("role", user.role);
+      setValue("role", user.role as UserRole);
       setEditingUser(userId);
       setIsAddUserOpen(true);
     }
   };
 
-  const handleDelete = (userId: string) => {
+  const handleDelete = async (userId: string) => {
     if (confirm("Are you sure you want to delete this user?")) {
-      deleteUser(userId);
+      await deleteUser(userId);
     }
   };
 
@@ -133,60 +153,90 @@ export function UserManagementTab() {
             </p>
           </div>
           <Button
-            onClick={() => setIsAddUserOpen(true)}
+            onClick={() => {
+              reset();
+              setEditingUser(null);
+              setIsAddUserOpen(true);
+            }}
             className="bg-validiz-brown hover:bg-validiz-brown/90"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add User
           </Button>
         </CardHeader>
+
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge className={getRoleBadgeColor(user.role)}>
-                        {user.role.toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(user.id)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(user.id)}
-                            className="text-red-600 focus:text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
+                      Loading users...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      No users found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.username}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge
+                          className={getRoleBadgeColor(user.role as UserRole)}
+                        >
+                          {user.role.replace("_", " ").toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{user.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {user.createdAt
+                          ? new Date(user.createdAt).toLocaleDateString()
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(user.id)}
+                            >
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(user.id)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
@@ -204,12 +254,15 @@ export function UserManagementTab() {
               {editingUser ? "Update user info" : "Create a new account"}
             </DialogDescription>
           </DialogHeader>
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" {...register("name")} />
-              {errors.name && (
-                <p className="text-sm text-red-600">{errors.name.message}</p>
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" {...register("username")} />
+              {errors.username && (
+                <p className="text-sm text-red-600">
+                  {errors.username.message}
+                </p>
               )}
             </div>
 
@@ -224,7 +277,10 @@ export function UserManagementTab() {
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
               <Select
-                onValueChange={(val) => setValue("role", val as UserRole)}
+                value={roleValue || ""}
+                onValueChange={(val) =>
+                  setValue("role", val as UserRole, { shouldValidate: true })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
@@ -261,6 +317,7 @@ export function UserManagementTab() {
             <div className="flex justify-end space-x-2 pt-4">
               <Button
                 variant="outline"
+                type="button"
                 onClick={() => {
                   setIsAddUserOpen(false);
                   setEditingUser(null);
@@ -271,10 +328,10 @@ export function UserManagementTab() {
               </Button>
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={saving}
                 className="bg-validiz-brown hover:bg-validiz-brown/90"
               >
-                {isLoading ? (
+                {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
                   </>

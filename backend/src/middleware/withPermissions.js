@@ -1,18 +1,33 @@
 // middleware/withPermissions.js
-import RolePermissions from "../models/RolePermissions.js";
+import RolePermissions from "../models/permission.model.js";
+import ApiError from "../utils/ApiError.js";
 
-export const withPermissions = async (req, res, next) => {
-  try {
-    const user = req.user; // assumed from JWT
-    const permissions = await RolePermissions.findOne({ role: user.role });
+const withPermissions = (requiredPermissions = []) => {
+  return async (req, res, next) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        throw new ApiError(401, "Unauthorized");
+      }
 
-    if (!permissions) {
-      return res.status(403).json({ error: "No permissions defined for this role" });
+      // Get role-based permissions
+      const rolePermissionDoc = await RolePermissions.findOne({ role: user.role });
+
+      // Check if user has required permissions
+      const hasPermission = requiredPermissions.every(permission => {
+        const [entity, action] = permission.split('.');
+        return rolePermissionDoc?.permissions?.get(entity)?.includes(action);
+      });
+
+      if (!hasPermission) {
+        throw new ApiError(403, "Insufficient permissions");
+      }
+
+      next();
+    } catch (error) {
+      next(error);
     }
-
-    req.permissions = permissions;
-    next();
-  } catch (error) {
-    return res.status(500).json({ error: "Permission check failed" });
-  }
+  };
 };
+
+export default withPermissions;

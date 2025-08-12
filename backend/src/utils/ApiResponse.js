@@ -1,37 +1,20 @@
-/**
- * Standard API Response class
- */
 class ApiResponse {
-  /**
-   * Create a success response
-   * @param {Object} data - Response data
-   * @param {string} message - Success message
-   * @param {number} statusCode - HTTP status code
-   * @returns {Object} Formatted response object
-   */
-  static success(data = null, message = "Success", statusCode = 200) {
-    return {
-      success: true,
-      message,
-      data,
-      statusCode,
-    };
+  constructor(statusCode, data, message = "Success") {
+    this.statusCode = statusCode;
+    this.data = data;
+    this.message = message;
+    this.success = statusCode < 400;
   }
 
-  /**
-   * Create an error response
-   * @param {string} message - Error message
-   * @param {number} statusCode - HTTP status code
-   * @param {Object} errors - Additional error details
-   * @returns {Object} Formatted error response object
-   */
-  static error(message = "Error", statusCode = 500, errors = null) {
-    return {
-      success: false,
-      message,
-      errors,
-      statusCode,
-    };
+  static success(data, message = "Success", statusCode = 200) {
+    return new ApiResponse(statusCode, data, message);
+  }
+
+  static error(message, statusCode = 400, errors = []) {
+    const response = new ApiResponse(statusCode, null, message);
+    response.success = false;
+    response.errors = errors;
+    return response;
   }
 }
 

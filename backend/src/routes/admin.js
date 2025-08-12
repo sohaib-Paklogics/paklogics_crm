@@ -1,21 +1,20 @@
 import express from "express";
+import * as adminController from "../controllers/admin.controller.js";
 import { protect, authorize } from "../middleware/admin.auth.js";
-import * as controller from "../controllers/admin.controller.js";
 
 const router = express.Router();
 
-// Public route
-router.post("/login", controller.login);
+// Authentication routes
+router.post("/login", adminController.login);
+router.get("/get-me", protect, adminController.getMe);
 
-// Protected routes
-router.get("/get-me", protect, controller.getMe);
-router.post("/add-user", controller.createAdminUser);
-router.get("/get-all", protect, controller.getAdminUsers);
-router.get("/get/:id", protect, controller.getSingleAdmin);
-router.get("/get-user/:id", protect, controller.getAdminUserById);
-router.put("/update-user/:id", protect, controller.updateAdminUser);
-router.put("/update-status/:id", protect, controller.toggleAdminStatus);
-router.put("/change-password/:id", protect, controller.changeAdminPassword);
-router.delete("/delete-user/:id", protect, authorize("superadmin", "admin"), controller.deleteAdminUser);
+// Admin user management routes (requires admin role)
+router.post("/add-user", adminController.createAdminUser);
+router.get("/", protect, authorize("admin"), adminController.getAdminUsers);
+router.get("/:id", protect, authorize("admin"), adminController.getAdminUserById);
+router.put("/:id", protect, authorize("admin"), adminController.updateAdminUser);
+router.patch("/:id/status", protect, authorize("admin"), adminController.toggleAdminStatus);
+router.delete("/:id", protect, authorize("admin"), adminController.deleteAdminUser);
+router.patch("/:id/password", protect, authorize("admin"), adminController.changeAdminPassword);
 
 export default router;

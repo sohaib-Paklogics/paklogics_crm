@@ -139,7 +139,7 @@ export default function DashboardPage() {
                       {lead.jobDescription}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Created by {lead.createdBy.name} •{" "}
+                      Created by {lead?.createdBy?.name} •{" "}
                       {new Date(lead.createdAt).toLocaleDateString()}
                     </p>
                   </div>

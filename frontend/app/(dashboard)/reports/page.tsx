@@ -189,7 +189,7 @@ export default function ReportsPage() {
         lead.source,
         lead.status,
         lead.assignedDeveloper?.name || "Unassigned",
-        lead.createdBy.name,
+        lead?.createdBy?.name,
         new Date(lead.createdAt).toLocaleDateString(),
       ]),
     ];

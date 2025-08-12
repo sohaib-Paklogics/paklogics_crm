@@ -1,20 +1,22 @@
+
 import ApiError from "../utils/ApiError.js";
 
-export function errorHandler(err, req, res, next) {
-  console.error("🔥 Error:", err);
+const errorHandler = (err, req, res, next) => {
+  let error = err;
 
-  const statusCode = err.statusCode || 500;
-
-  if (err instanceof ApiError) {
-    return res.status(statusCode).json({
-      success: false,
-      message: err.message,
-      errors: err.errors || null,
-    });
+  if (!(error instanceof ApiError)) {
+    const statusCode = error.statusCode || 500;
+    const message = error.message || "Something went wrong";
+    error = new ApiError(statusCode, message, error?.errors || []);
   }
 
-  return res.status(statusCode).json({
+  const response = {
     success: false,
-    message: "Internal Server Error",
-  });
-}
+    message: error.message,
+    ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
+  };
+
+  res.status(error.statusCode).json(response);
+};
+
+export default errorHandler;

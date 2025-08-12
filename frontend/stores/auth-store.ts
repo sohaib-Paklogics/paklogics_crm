@@ -119,7 +119,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       showSuccess: false,
       showError: false,
     });
-
+    console.log("AuthStore fetchUser response:", response);
     if (response?.success) {
       const user = response.data.user;
       const mergedPermissions = mergePermissions(
