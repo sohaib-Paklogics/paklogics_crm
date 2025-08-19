@@ -1,43 +1,19 @@
 import express from "express";
-import {
-  createLead,
-  getLeads,
-  getLeadById,
-  updateLead,
-  deleteLead,
-  assignDeveloper,
-  updateLeadStatus,
-  uploadAttachment,
-} from "../controllers/leads.controller.js";
-
-import { createNote, getNotes } from "../controllers/notes.controller.js";
-
-import { sendMessage, getMessages, markAsRead } from "../controllers/chat.controller.js";
-
-import { authorize, protect } from "../middleware/admin.auth.js";
+import * as ctrl from "../controllers/lead.controller.js";
+import { protect, authorize } from "../middleware/admin.auth.js";
 
 const router = express.Router();
 
-// Apply authentication middleware to all routes
-router.use(protect);
+// Create & read
+router.post("/", protect, authorize("business_developer", "admin", "superadmin"), ctrl.create);
+router.get("/", protect, ctrl.list);
+router.get("/stats/summary", protect, authorize("admin", "superadmin"), ctrl.statsSummary);
+router.get("/:id", protect, ctrl.getOne);
 
-// Lead routes
-router.post("/", authorize("super_admin", "admin", "business_developer"), createLead);
-router.get("/", getLeads);
-router.get("/:id", getLeadById);
-router.patch("/:id", authorize("super_admin", "admin", "business_developer"), updateLead);
-router.delete("/:id", deleteLead);
-router.post("/:id/assign", authorize("super_admin", "admin", "business_developer"), assignDeveloper);
-router.patch("/:id/status", updateLeadStatus);
-router.post("/:id/attachments", uploadAttachment);
-
-// Notes routes (nested under leads)
-router.post("/:id/notes", createNote);
-router.get("/:id/notes", getNotes);
-
-// Chat routes (nested under leads)
-router.post("/:id/messages", sendMessage);
-router.get("/:id/messages", getMessages);
-router.patch("/:id/messages/read", markAsRead);
+// Update & delete
+router.put("/:id", protect, authorize("business_developer", "admin", "superadmin"), ctrl.update);
+router.patch("/:id/assign", protect, authorize("admin", "superadmin"), ctrl.assign);
+router.patch("/:id/status", protect, authorize("business_developer", "admin", "superadmin"), ctrl.changeStatus);
+router.delete("/:id", protect, authorize("admin", "superadmin"), ctrl.remove);
 
 export default router;

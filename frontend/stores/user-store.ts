@@ -38,7 +38,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     });
 
     if (res?.success && res.data) {
-      set({ users: res.data });
+      set({ users: res.data.data });
     }
 
     set({ loading: false });

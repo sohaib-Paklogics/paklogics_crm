@@ -1,106 +1,72 @@
-
-import api from '../lib/api';
-
-export interface Lead {
-  _id: string;
-  clientName: string;
-  jobDescription: string;
-  source: string;
-  status: 'New' | 'Interview Scheduled' | 'Test Assigned' | 'Completed';
-  assignedTo?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateLeadData {
-  clientName: string;
-  jobDescription: string;
-  source: string;
-  status?: string;
-  assignedTo?: string;
-  notes?: string;
-}
-
-export interface UpdateLeadData {
-  clientName?: string;
-  jobDescription?: string;
-  source?: string;
-  notes?: string;
-}
-
-export interface AssignLeadData {
-  assignedTo: string;
-}
-
-export interface UpdateStatusData {
-  status: string;
-}
+// src/services/lead.service.ts
+import api from "@/lib/api";
+import type {
+  ApiResponse,
+  Lead,
+  LeadFilters,
+  PaginatedResponse,
+} from "@/types/lead";
 
 export const leadService = {
-  // Get all leads with filters and pagination
-  getLeads: async (params?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    source?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.source) queryParams.append('source', params.source);
-    
-    const response = await api.get(`/leads?${queryParams.toString()}`);
-    return response.data;
+  create: async (payload: Partial<Lead>): Promise<ApiResponse<Lead>> => {
+    const { data } = await api.post<ApiResponse<Lead>>("/leads", payload);
+    return data;
   },
 
-  // Get single lead by ID
-  getLead: async (id: string) => {
-    const response = await api.get(`/leads/${id}`);
-    return response.data;
+  list: async (
+    filters: LeadFilters
+  ): Promise<ApiResponse<PaginatedResponse<Lead>>> => {
+    const { data } = await api.get<ApiResponse<PaginatedResponse<Lead>>>(
+      "/leads",
+      { params: filters }
+    );
+    return data;
   },
 
-  // Create new lead
-  createLead: async (data: CreateLeadData) => {
-    const response = await api.post('/leads', data);
-    return response.data;
+  getOne: async (id: string): Promise<ApiResponse<Lead>> => {
+    const { data } = await api.get<ApiResponse<Lead>>(`/leads/${id}`);
+    return data;
   },
 
-  // Update lead
-  updateLead: async (id: string, data: UpdateLeadData) => {
-    const response = await api.patch(`/leads/${id}`, data);
-    return response.data;
+  update: async (
+    id: string,
+    payload: Partial<Lead>
+  ): Promise<ApiResponse<Lead>> => {
+    const { data } = await api.put<ApiResponse<Lead>>(`/leads/${id}`, payload);
+    return data;
   },
 
-  // Delete lead
-  deleteLead: async (id: string) => {
-    const response = await api.delete(`/leads/${id}`);
-    return response.data;
+  remove: async (
+    id: string
+  ): Promise<ApiResponse<{ id: string; deletedAt: string }>> => {
+    const { data } = await api.delete<
+      ApiResponse<{ id: string; deletedAt: string }>
+    >(`/leads/${id}`);
+    return data;
   },
 
-  // Assign lead to user
-  assignLead: async (id: string, data: AssignLeadData) => {
-    const response = await api.post(`/leads/${id}/assign`, data);
-    return response.data;
-  },
-
-  // Update lead status
-  updateStatus: async (id: string, data: UpdateStatusData) => {
-    const response = await api.patch(`/leads/${id}/status`, data);
-    return response.data;
-  },
-
-  // Upload attachment
-  uploadAttachment: async (id: string, file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const response = await api.post(`/leads/${id}/attachments`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+  assign: async (
+    id: string,
+    assignedTo: string | null
+  ): Promise<ApiResponse<Lead>> => {
+    const { data } = await api.patch<ApiResponse<Lead>>(`/leads/${id}/assign`, {
+      assignedTo,
     });
-    return response.data;
+    return data;
+  },
+
+  changeStatus: async (
+    id: string,
+    status: Lead["status"]
+  ): Promise<ApiResponse<Lead>> => {
+    const { data } = await api.patch<ApiResponse<Lead>>(`/leads/${id}/status`, {
+      status,
+    });
+    return data;
+  },
+
+  statsSummary: async (): Promise<ApiResponse<any>> => {
+    const { data } = await api.get<ApiResponse<any>>("/leads/stats/summary");
+    return data;
   },
 };

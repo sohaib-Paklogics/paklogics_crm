@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useLeadStore } from "@/stores/lead-store";
-import { useUserStore } from "@/stores/user-store";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Clock,
+  FileText,
+} from "lucide-react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,152 +30,145 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Clock,
-  User,
-  FileText,
-} from "lucide-react";
-import type { CalendarEvent } from "@/types/types";
-import useAuthStore from "@/stores/auth-store";
 
-// Mock events data
-const mockEvents: CalendarEvent[] = [
-  {
-    id: "1",
-    title: "Interview with TechCorp",
-    description: "Technical interview for React Developer position",
-    startTime: "2024-02-01T14:00:00Z",
-    endTime: "2024-02-01T15:00:00Z",
-    leadId: "1",
-    developerId: "3",
-    createdById: "2",
-    type: "interview",
-  } as CalendarEvent,
-  {
-    id: "2",
-    title: "Coding Test Review",
-    description: "Review coding test submission",
-    startTime: "2024-02-02T10:00:00Z",
-    endTime: "2024-02-02T11:00:00Z",
-    leadId: "3",
-    developerId: "3",
-    createdById: "1",
-    type: "test",
-  } as CalendarEvent,
+import useAuthStore from "@/stores/auth-store";
+import { useLeadsStore } from "@/stores/leads.store";
+import { useEventsStore } from "@/stores/events.store";
+import type { Lead, LeadEvent } from "@/types/lead";
+
+// ----- helpers -----
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
+const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+const endOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
+
+const getDaysInMonth = (date: Date) => {
+  const start = startOfMonth(date);
+  const end = endOfMonth(date);
+  const days: (Date | null)[] = [];
+
+  // leading empty cells
+  for (let i = 0; i < start.getDay(); i++) days.push(null);
+  // month days
+  for (let day = 1; day <= end.getDate(); day++)
+    days.push(new Date(date.getFullYear(), date.getMonth(), day));
+
+  return days;
+};
+
+const toISO = (local: string) => new Date(local).toISOString();
+const userTZ =
+  Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Karachi";
+
+// ----- page -----
 export default function CalendarPage() {
   const { user, hasPermission } = useAuthStore();
-  const { leads } = useLeadStore();
-  const { users } = useUserStore();
+  const { items: leads, fetch: fetchLeads } = useLeadsStore();
+  const { items: events, isLoading, fetch, create, remove } = useEventsStore();
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"month" | "week" | "day">("month");
-  const [events] = useState<CalendarEvent[]>(mockEvents);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-    null
-  );
+  const [selectedEvent, setSelectedEvent] = useState<LeadEvent | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string>("");
 
   // Add loading check
+  useEffect(() => {
+    // ensure we have some leads to pick from
+    fetchLeads({ page: 1, limit: 50, status: "all" }).catch(() => {});
+  }, [fetchLeads]);
+
+  // default lead selection once leads load
+  useEffect(() => {
+    if (!selectedLeadId && leads.length) {
+      setSelectedLeadId(leads[0]._id);
+    }
+  }, [leads, selectedLeadId]);
+
+  // fetch events for selected lead + month range
+  useEffect(() => {
+    if (!selectedLeadId) return;
+    const from = startOfMonth(currentDate).toISOString();
+    const to = new Date(
+      endOfMonth(currentDate).getTime() + 24 * 60 * 60 * 1000 - 1
+    ).toISOString(); // inclusive end
+    fetch(selectedLeadId, { page: 1, limit: 100, from, to }).catch(() => {});
+  }, [selectedLeadId, currentDate, fetch]);
+
   if (!user) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-validiz-brown"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-validiz-brown" />
         </div>
       </MainLayout>
     );
   }
 
-  const canCreateEvents = hasPermission({ action: "read", resource: "users" });
-  const developers = users.filter((u) => u.role === "developer");
+  const canCreateEvents = hasPermission({
+    action: "create",
+    resource: "leads",
+  });
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+  const days = useMemo(() => getDaysInMonth(currentDate), [currentDate]);
 
-    const days = [];
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day));
-    }
-
-    return days;
-  };
-
-  const getEventsForDate = (date: Date) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.startTime);
+  const eventsForDate = (day: Date) =>
+    events.filter((e) => {
+      const d = new Date(e.startTime);
       return (
-        eventDate.getDate() === date.getDate() &&
-        eventDate.getMonth() === date.getMonth() &&
-        eventDate.getFullYear() === date.getFullYear()
+        d.getDate() === day.getDate() &&
+        d.getMonth() === day.getMonth() &&
+        d.getFullYear() === day.getFullYear()
       );
     });
+
+  const navigateMonth = (dir: "prev" | "next") => {
+    setCurrentDate(
+      (prev) =>
+        new Date(
+          prev.getFullYear(),
+          prev.getMonth() + (dir === "prev" ? -1 : 1),
+          1
+        )
+    );
   };
 
-  const navigateMonth = (direction: "prev" | "next") => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev);
-      if (direction === "prev") {
-        newDate.setMonth(prev.getMonth() - 1);
-      } else {
-        newDate.setMonth(prev.getMonth() + 1);
-      }
-      return newDate;
-    });
+  const isToday = (d: Date) => {
+    const now = new Date();
+    return (
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    );
   };
 
-  const getEventTypeColor = (type: string) => {
-    switch (type) {
-      case "interview":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "test":
-        return "bg-orange-100 text-orange-800 border-orange-200";
-      case "availability":
-        return "bg-green-100 text-green-800 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], {
+  const fmtTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: userTZ,
     });
-  };
 
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const days = getDaysInMonth(currentDate);
+  const upcoming = useMemo(() => {
+    const now = Date.now();
+    return [...events]
+      .filter((e) => new Date(e.startTime).getTime() >= now)
+      .sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime))
+      .slice(0, 5);
+  }, [events]);
 
   return (
     <MainLayout>
@@ -179,11 +178,29 @@ export default function CalendarPage() {
           <div>
             <h1 className="text-3xl font-bold text-validiz-brown">Calendar</h1>
             <p className="text-gray-600 mt-1">
-              Schedule interviews, tests, and track availability
+              Schedule interviews, tests, and follow-ups for a lead
             </p>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+
+          <div className="flex items-center gap-2">
+            {/* Lead selector */}
+            <Select
+              value={selectedLeadId}
+              onValueChange={(v) => setSelectedLeadId(v)}
+            >
+              <SelectTrigger className="w-[240px]">
+                <SelectValue placeholder="Select lead" />
+              </SelectTrigger>
+              <SelectContent>
+                {leads.map((l: Lead) => (
+                  <SelectItem key={l._id} value={l._id}>
+                    {l.clientName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="hidden sm:flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
               <Button
                 variant={view === "month" ? "default" : "ghost"}
                 size="sm"
@@ -205,6 +222,8 @@ export default function CalendarPage() {
                     ? "bg-validiz-brown hover:bg-validiz-brown/90"
                     : ""
                 }
+                disabled
+                title="Week view coming soon"
               >
                 Week
               </Button>
@@ -217,14 +236,18 @@ export default function CalendarPage() {
                     ? "bg-validiz-brown hover:bg-validiz-brown/90"
                     : ""
                 }
+                disabled
+                title="Day view coming soon"
               >
                 Day
               </Button>
             </div>
+
             {canCreateEvents && (
               <Button
                 onClick={() => setIsAddEventOpen(true)}
                 className="bg-validiz-brown hover:bg-validiz-brown/90"
+                disabled={!selectedLeadId}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Event
@@ -264,63 +287,57 @@ export default function CalendarPage() {
               Today
             </Button>
           </CardHeader>
+
           <CardContent>
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-1 mb-4">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                 <div
-                  key={day}
+                  key={d}
                   className="p-2 text-center font-medium text-gray-600 text-sm"
                 >
-                  {day}
+                  {d}
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-1">
-              {days.map((day, index) => {
-                if (!day) {
-                  return <div key={index} className="h-24 p-1" />;
-                }
 
-                const dayEvents = getEventsForDate(day);
-                const isToday =
-                  day.getDate() === new Date().getDate() &&
-                  day.getMonth() === new Date().getMonth() &&
-                  day.getFullYear() === new Date().getFullYear();
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((day, idx) => {
+                if (!day) return <div key={idx} className="h-24 p-1" />;
+                const dayEvents = eventsForDate(day);
+                const today = isToday(day);
 
                 return (
                   <div
-                    key={index}
+                    key={idx}
                     className={`h-24 p-1 border border-gray-200 ${
-                      isToday
+                      today
                         ? "bg-validiz-mustard/10 border-validiz-mustard"
                         : "hover:bg-gray-50"
                     }`}
                   >
                     <div
                       className={`text-sm font-medium mb-1 ${
-                        isToday ? "text-validiz-brown" : "text-gray-700"
+                        today ? "text-validiz-brown" : "text-gray-700"
                       }`}
                     >
                       {day.getDate()}
                     </div>
+
                     <div className="space-y-1">
-                      {dayEvents.slice(0, 2).map((event) => (
-                        <div
-                          key={event.id}
-                          onClick={() => setSelectedEvent(event)}
-                          className={`text-xs p-1 rounded border cursor-pointer hover:shadow-sm ${getEventTypeColor(
-                            event.type
-                          )}`}
+                      {dayEvents.slice(0, 2).map((e) => (
+                        <button
+                          key={e._id}
+                          onClick={() => setSelectedEvent(e)}
+                          className="w-full text-left text-xs p-1 rounded border cursor-pointer hover:shadow-sm bg-blue-50 text-blue-800 border-blue-200"
                         >
-                          <div className="font-medium truncate">
-                            {event.title}
-                          </div>
+                          <div className="font-medium truncate">{e.title}</div>
                           <div className="text-xs opacity-75">
-                            {formatTime(event.startTime)}
+                            {fmtTime(e.startTime)}
                           </div>
-                        </div>
+                        </button>
                       ))}
+
                       {dayEvents.length > 2 && (
                         <div className="text-xs text-gray-500 text-center">
                           +{dayEvents.length - 2} more
@@ -343,68 +360,50 @@ export default function CalendarPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {events.slice(0, 5).map((event) => (
+              {upcoming.map((e) => (
                 <div
-                  key={event.id}
+                  key={e._id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
                 >
                   <div className="flex items-center space-x-3">
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        event.type === "interview"
-                          ? "bg-blue-500"
-                          : event.type === "test"
-                          ? "bg-orange-500"
-                          : "bg-green-500"
-                      }`}
-                    />
+                    <div className="w-3 h-3 rounded-full bg-blue-500" />
                     <div>
                       <p className="font-medium text-validiz-brown">
-                        {event.title}
+                        {e.title}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        {event.description}
-                      </p>
+                      {e.description && (
+                        <p className="text-sm text-gray-600">{e.description}</p>
+                      )}
                       <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {new Date(event.startTime).toLocaleDateString()} at{" "}
-                            {formatTime(event.startTime)}
+                            {new Date(e.startTime).toLocaleDateString()} at{" "}
+                            {fmtTime(e.startTime)}
                           </span>
                         </div>
-                        {event.leadId && (
+                        {e.leadId && (
                           <div className="flex items-center space-x-1">
                             <FileText className="h-3 w-3" />
-                            <span>Lead #{event.leadId}</span>
-                          </div>
-                        )}
-                        {event.developerId && (
-                          <div className="flex items-center space-x-1">
-                            <User className="h-3 w-3" />
                             <span>
-                              {
-                                users.find((u) => u.id === event.developerId)
-                                  ?.name
-                              }
+                              {leads.find((l) => l._id === String(e.leadId))
+                                ?.clientName || `Lead`}
                             </span>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-                  <Badge className={getEventTypeColor(event.type)}>
-                    {event.type}
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                    Event
                   </Badge>
                 </div>
               ))}
-              {events.length === 0 && (
+              {!isLoading && upcoming.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <Calendar className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                   <p>No upcoming events</p>
-                  <p className="text-sm">
-                    Schedule interviews and tests to get started
-                  </p>
+                  <p className="text-sm">Create an event to get started</p>
                 </div>
               )}
             </div>
@@ -413,120 +412,23 @@ export default function CalendarPage() {
       </div>
 
       {/* Add Event Modal */}
-      <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="text-validiz-brown">
-              Add New Event
-            </DialogTitle>
-            <DialogDescription>
-              Schedule an interview, test, or mark availability
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Event Title *</Label>
-                <Input
-                  id="title"
-                  placeholder="Enter event title"
-                  className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="type">Event Type *</Label>
-                <Select>
-                  <SelectTrigger className="focus:ring-validiz-mustard focus:border-validiz-mustard">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="interview">Interview</SelectItem>
-                    <SelectItem value="test">Test</SelectItem>
-                    <SelectItem value="availability">Availability</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Event description (optional)"
-                className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startTime">Start Date & Time *</Label>
-                <Input
-                  id="startTime"
-                  type="datetime-local"
-                  className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endTime">End Date & Time *</Label>
-                <Input
-                  id="endTime"
-                  type="datetime-local"
-                  className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="leadId">Related Lead</Label>
-                <Select>
-                  <SelectTrigger className="focus:ring-validiz-mustard focus:border-validiz-mustard">
-                    <SelectValue placeholder="Select lead (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leads.map((lead) => (
-                      <SelectItem key={lead.id} value={lead.id}>
-                        {lead.clientName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="developerId">Assign Developer</Label>
-                <Select>
-                  <SelectTrigger className="focus:ring-validiz-mustard focus:border-validiz-mustard">
-                    <SelectValue placeholder="Select developer (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {developers.map((developer) => (
-                      <SelectItem key={developer.id} value={developer.id}>
-                        {developer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAddEventOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="bg-validiz-brown hover:bg-validiz-brown/90"
-              >
-                Create Event
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddEventModal
+        open={isAddEventOpen}
+        onOpenChange={setIsAddEventOpen}
+        onCreate={async (payload) => {
+          if (!selectedLeadId) return;
+          const ok = await create(selectedLeadId, payload);
+          if (ok) {
+            // refresh this month
+            const from = startOfMonth(currentDate).toISOString();
+            const to = new Date(
+              endOfMonth(currentDate).getTime() + 24 * 60 * 60 * 1000 - 1
+            ).toISOString();
+            await fetch(selectedLeadId, { page: 1, limit: 100, from, to });
+            setIsAddEventOpen(false);
+          }
+        }}
+      />
 
       {/* Event Details Modal */}
       <Dialog
@@ -567,42 +469,179 @@ export default function CalendarPage() {
                   </p>
                 </div>
               </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-600">
-                  Type
-                </Label>
-                <Badge
-                  className={`mt-1 ${getEventTypeColor(selectedEvent.type)}`}
-                >
-                  {selectedEvent.type}
-                </Badge>
-              </div>
               {selectedEvent.leadId && (
                 <div>
                   <Label className="text-sm font-medium text-gray-600">
                     Related Lead
                   </Label>
                   <p className="text-sm text-gray-800 mt-1">
-                    {leads.find((l) => l.id === selectedEvent.leadId)
-                      ?.clientName || `Lead #${selectedEvent.leadId}`}
+                    {leads.find((l) => l._id === String(selectedEvent.leadId))
+                      ?.clientName || "Lead"}
                   </p>
                 </div>
               )}
-              {selectedEvent.developerId && (
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">
-                    Assigned Developer
-                  </Label>
-                  <p className="text-sm text-gray-800 mt-1">
-                    {users.find((u) => u.id === selectedEvent.developerId)
-                      ?.name || "Unknown"}
-                  </p>
-                </div>
-              )}
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    await remove(selectedEvent._id);
+                    setSelectedEvent(null);
+                    if (selectedLeadId) {
+                      const from = startOfMonth(currentDate).toISOString();
+                      const to = new Date(
+                        endOfMonth(currentDate).getTime() +
+                          24 * 60 * 60 * 1000 -
+                          1
+                      ).toISOString();
+                      await fetch(selectedLeadId, {
+                        page: 1,
+                        limit: 100,
+                        from,
+                        to,
+                      });
+                    }
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
     </MainLayout>
+  );
+}
+
+/* ===========================
+   Add Event Modal (sub-component)
+   =========================== */
+
+function AddEventModal({
+  open,
+  onOpenChange,
+  onCreate,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreate: (
+    payload: Pick<
+      LeadEvent,
+      "title" | "startTime" | "endTime" | "timezone" | "description"
+    >
+  ) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const canSubmit = title && start && end;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      await onCreate({
+        title,
+        description: description || undefined,
+        startTime: toISO(start),
+        endTime: toISO(end),
+        timezone: userTZ,
+      });
+      // reset local form after successful create
+      setTitle("");
+      setDescription("");
+      setStart("");
+      setEnd("");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle className="text-validiz-brown">
+            Add New Event
+          </DialogTitle>
+          <DialogDescription>
+            Schedule an interview, test, or follow-up
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Event Title *</Label>
+              <Input
+                id="title"
+                placeholder="Enter event title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tz">Timezone</Label>
+              <Input id="tz" value={userTZ} disabled />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Event description (optional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startTime">Start Date & Time *</Label>
+              <Input
+                id="startTime"
+                type="datetime-local"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endTime">End Date & Time *</Label>
+              <Input
+                id="endTime"
+                type="datetime-local"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                min={start || undefined}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="bg-validiz-brown hover:bg-validiz-brown/90"
+              disabled={!canSubmit || submitting}
+            >
+              Create Event
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

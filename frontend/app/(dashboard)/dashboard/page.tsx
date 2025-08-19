@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import useAuthStore from "@/stores/auth-store";
-import { useLeadStore } from "@/stores/lead-store";
+import { useLeadsStore } from "@/stores/leads.store";
 import { MainLayout } from "@/components/layout/main-layout";
 import {
   Card,
@@ -15,25 +16,68 @@ import { Users, FileText, Calendar, TrendingUp } from "lucide-react";
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const { leads } = useLeadStore();
+  const { items: leads, fetch, isLoading } = useLeadsStore();
 
-  if (!user) return null;
+  // fetch a reasonable amount for dashboard stats
+  useEffect(() => {
+    if (!user) return;
+    const params: Record<string, any> = { page: 1, limit: 100 };
+    if (user.role === "business_developer") params.createdBy = user.id;
+    if (user.role === "developer") params.assignedTo = user.id;
+    fetch(params).catch(() => {});
+  }, [user, fetch]);
 
-  const userLeads =
-    user.role === "admin"
-      ? leads
-      : user.role === "business_developer"
-      ? leads.filter((lead) => lead.createdById === user.id)
-      : leads.filter((lead) => lead.assignedDeveloperId === user.id);
+  if (!user) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-validiz-brown" />
+        </div>
+      </MainLayout>
+    );
+  }
 
-  const stats = {
-    totalLeads: userLeads.length,
-    newLeads: userLeads.filter((lead) => lead.status === "new").length,
-    interviewScheduled: userLeads.filter(
-      (lead) => lead.status === "interview_scheduled"
-    ).length,
-    completed: userLeads.filter((lead) => lead.status === "completed").length,
-  };
+  // role guard on client (in case API returned more)
+  const scopedLeads = useMemo(() => {
+    if (user.role === "admin" || user.role === "superadmin") return leads;
+    if (user.role === "business_developer") {
+      return leads.filter(
+        (l: any) =>
+          String(
+            typeof l.createdBy === "string" ? l.createdBy : l.createdBy?._id
+          ) === String(user.id)
+      );
+    }
+    // developer
+    return leads.filter(
+      (l: any) =>
+        String(
+          typeof l.assignedTo === "string" ? l.assignedTo : l.assignedTo?._id
+        ) === String(user.id)
+    );
+  }, [leads, user]);
+
+  const stats = useMemo(() => {
+    const total = scopedLeads.length;
+    const newLeads = scopedLeads.filter((l: any) => l.status === "new").length;
+    const interviewScheduled = scopedLeads.filter(
+      (l: any) => l.status === "interview_scheduled"
+    ).length;
+    const completed = scopedLeads.filter(
+      (l: any) => l.status === "completed"
+    ).length;
+    return { total, newLeads, interviewScheduled, completed };
+  }, [scopedLeads]);
+
+  const recent = useMemo(
+    () =>
+      [...scopedLeads]
+        .sort(
+          (a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt)
+        )
+        .slice(0, 5),
+    [scopedLeads]
+  );
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -64,10 +108,10 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-validiz-brown">
-                {stats.totalLeads}
+                {isLoading ? "…" : stats.total}
               </div>
               <p className="text-xs text-muted-foreground">
-                {user.role === "admin"
+                {user.role === "admin" || user.role === "superadmin"
                   ? "All leads"
                   : user.role === "business_developer"
                   ? "Your leads"
@@ -83,7 +127,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-validiz-mustard">
-                {stats.newLeads}
+                {isLoading ? "…" : stats.newLeads}
               </div>
               <p className="text-xs text-muted-foreground">Awaiting action</p>
             </CardContent>
@@ -96,7 +140,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {stats.interviewScheduled}
+                {isLoading ? "…" : stats.interviewScheduled}
               </div>
               <p className="text-xs text-muted-foreground">Scheduled</p>
             </CardContent>
@@ -109,7 +153,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {stats.completed}
+                {isLoading ? "…" : stats.completed}
               </div>
               <p className="text-xs text-muted-foreground">
                 Successfully closed
@@ -126,51 +170,57 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {userLeads.slice(0, 5).map((lead) => (
-                <div
-                  key={lead.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium text-validiz-brown">
-                      {lead.clientName}
-                    </h4>
-                    <p className="text-sm text-gray-600 truncate max-w-md">
-                      {lead.jobDescription}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Created by {lead?.createdBy?.name} •{" "}
-                      {new Date(lead.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge
-                      variant={
-                        lead.status === "new"
-                          ? "secondary"
-                          : lead.status === "interview_scheduled"
-                          ? "default"
-                          : lead.status === "test_assigned"
-                          ? "outline"
-                          : "default"
-                      }
-                      className={
-                        lead.status === "new"
-                          ? "bg-validiz-mustard text-validiz-brown"
-                          : lead.status === "completed"
-                          ? "bg-green-100 text-green-800"
-                          : ""
-                      }
+              {isLoading && (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+
+              {!isLoading &&
+                recent.map((lead: any) => {
+                  const createdByName =
+                    (typeof lead.createdBy === "object" &&
+                      lead.createdBy?.username) ||
+                    (typeof lead.createdBy === "string" && "") ||
+                    "—";
+                  return (
+                    <div
+                      key={lead._id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
                     >
-                      {lead.status.replace("_", " ")}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-              {userLeads.length === 0 && (
+                      <div className="flex-1">
+                        <h4 className="font-medium text-validiz-brown">
+                          {lead.clientName}
+                        </h4>
+                        <p className="text-sm text-gray-600 truncate max-w-md">
+                          {lead.jobDescription}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Created by {createdByName} •{" "}
+                          {new Date(lead.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge
+                          className={
+                            lead.status === "new"
+                              ? "bg-validiz-mustard text-validiz-brown"
+                              : lead.status === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : ""
+                          }
+                        >
+                          {String(lead.status).replace("_", " ")}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {!isLoading && scopedLeads.length === 0 && (
                 <p className="text-center text-gray-500 py-8">
                   No leads found.{" "}
-                  {user.role === "business_developer" || user.role === "admin"
+                  {user.role === "business_developer" ||
+                  user.role === "admin" ||
+                  user.role === "superadmin"
                     ? "Create your first lead to get started!"
                     : "No leads have been assigned to you yet."}
                 </p>

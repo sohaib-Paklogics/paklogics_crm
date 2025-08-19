@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useLeadStore } from "@/stores/lead-store";
-import { Loader2 } from "lucide-react";
+import { useLeadsStore } from "@/stores/leads.store";
 
 interface AddLeadModalProps {
   open: boolean;
@@ -27,49 +27,70 @@ interface AddLeadModalProps {
   onSuccess?: () => void;
 }
 
+type LeadStatus = "new" | "interview_scheduled" | "test_assigned" | "completed";
+type LeadSource = "website" | "referral" | "linkedin" | "job_board" | "other";
+
 export function AddLeadModal({
   open,
   onOpenChange,
   onSuccess,
 }: AddLeadModalProps) {
-  const { createLead, isLoading } = useLeadStore();
-  const [formData, setFormData] = useState({
+  const { create, isLoading } = useLeadsStore();
+
+  const [formData, setFormData] = useState<{
+    clientName: string;
+    jobDescription: string;
+    source: LeadSource | "";
+    status: LeadStatus;
+    assignedTo: string; // ObjectId string; leave empty to omit
+    notes: string;
+  }>({
     clientName: "",
     jobDescription: "",
     source: "",
-    status: "New" as const,
+    status: "new",
     assignedTo: "",
     notes: "",
   });
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      clientName: "",
+      jobDescription: "",
+      source: "",
+      status: "new",
+      assignedTo: "",
+      notes: "",
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const result = await createLead({
+    // minimal guard (server validates again)
+    if (!formData.clientName || !formData.jobDescription || !formData.source) {
+      return;
+    }
+
+    const payload: any = {
       clientName: formData.clientName,
       jobDescription: formData.jobDescription,
       source: formData.source,
       status: formData.status,
-      assignedTo: formData.assignedTo || undefined,
-      notes: formData.notes || undefined,
-    });
+    };
 
-    if (result) {
-      // Reset form
-      setFormData({
-        clientName: "",
-        jobDescription: "",
-        source: "",
-        status: "New",
-        assignedTo: "",
-        notes: "",
-      });
+    if (formData.assignedTo) payload.assignedTo = formData.assignedTo;
+    if (formData.notes) payload.notes = formData.notes;
+
+    const created = await create(payload);
+    if (created) {
+      resetForm();
       onSuccess?.();
     }
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -80,7 +101,7 @@ export function AddLeadModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="clientName">Client Name *</Label>
               <Input
@@ -95,7 +116,7 @@ export function AddLeadModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="source">Source</Label>
+              <Label htmlFor="source">Source *</Label>
               <Select
                 value={formData.source}
                 onValueChange={(value) => handleInputChange("source", value)}
@@ -107,7 +128,7 @@ export function AddLeadModal({
                 <SelectContent>
                   <SelectItem value="linkedin">LinkedIn</SelectItem>
                   <SelectItem value="job_board">Job Board</SelectItem>
-                  <SelectItem value="website">Company Website</SelectItem>
+                  <SelectItem value="website">Website</SelectItem>
                   <SelectItem value="referral">Referral</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
@@ -116,7 +137,7 @@ export function AddLeadModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="jobDescription">Job Description</Label>
+            <Label htmlFor="jobDescription">Job Description *</Label>
             <Textarea
               id="jobDescription"
               value={formData.jobDescription}
@@ -124,11 +145,12 @@ export function AddLeadModal({
                 handleInputChange("jobDescription", e.target.value)
               }
               rows={3}
+              required
               disabled={isLoading}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
@@ -137,7 +159,7 @@ export function AddLeadModal({
                 disabled={isLoading}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="new">New</SelectItem>
@@ -151,14 +173,14 @@ export function AddLeadModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="assignedTo">Assigned To</Label>
+              <Label htmlFor="assignedTo">Assigned To (User ID)</Label>
               <Input
                 id="assignedTo"
                 value={formData.assignedTo}
                 onChange={(e) =>
                   handleInputChange("assignedTo", e.target.value)
                 }
-                placeholder="Enter assignee name"
+                placeholder="Optional: AdminUser ObjectId"
                 disabled={isLoading}
               />
             </div>
@@ -185,7 +207,15 @@ export function AddLeadModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button
+              type="submit"
+              disabled={
+                isLoading ||
+                !formData.clientName ||
+                !formData.jobDescription ||
+                !formData.source
+              }
+            >
               {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Add Lead
             </Button>

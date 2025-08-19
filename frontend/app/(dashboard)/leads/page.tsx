@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Plus, Search, Filter, Eye, Trash2 } from "lucide-react";
+
+import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,84 +26,120 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddLeadModal } from "@/components/modals/add-lead-modal";
-import { useLeadStore } from "@/stores/lead-store";
-import { Plus, Search, Filter, Eye, Edit, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Pagination } from "@/components/ui/pagination";
-import { MainLayout } from "@/components/layout/main-layout";
+
+// ✅ Uses the store API we implemented earlier
+import { useLeadsStore } from "@/stores/leads.store";
+
+type LeadStatus =
+  | "all"
+  | "new"
+  | "interview_scheduled"
+  | "test_assigned"
+  | "completed";
+type LeadSource =
+  | "all"
+  | "website"
+  | "referral"
+  | "linkedin"
+  | "job_board"
+  | "other";
 
 export default function LeadsPage() {
   const router = useRouter();
+
+  // UI state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<LeadStatus>("all");
+  const [sourceFilter, setSourceFilter] = useState<LeadSource>("all");
 
-  const {
-    leads,
-    isLoading,
-    error,
-    pagination,
-    fetchLeads,
-    deleteLead,
-    setError,
-  } = useLeadStore();
+  // Store
+  const { items, isLoading, pagination, filters, fetch, remove, setFilters } =
+    useLeadsStore();
 
+  // Load on mount & whenever filters change
   useEffect(() => {
-    loadLeads();
-  }, [currentPage, statusFilter, sourceFilter]);
+    fetch({ page: filters.page ?? 1, limit: filters.limit ?? 10 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      setError(null);
-    }
-  }, [error, setError]);
+  // Handy memo for total
+  const totalCount = useMemo(() => pagination?.total ?? 0, [pagination]);
 
-  const loadLeads = async () => {
-    const params = {
-      page: currentPage,
-      limit: 10,
-      ...(statusFilter !== "all" && { status: statusFilter }),
-      ...(sourceFilter !== "all" && { source: sourceFilter }),
+  // Actions
+  const loadLeads = async (override?: Partial<typeof filters>) => {
+    const merged = {
+      ...filters,
+      ...(searchTerm ? { search: searchTerm } : { search: "" }),
+      status: statusFilter,
+      ...(sourceFilter !== "all"
+        ? { source: sourceFilter }
+        : { source: undefined }),
+      ...override,
     };
-    await fetchLeads(params);
+    setFilters(merged);
+    await fetch(merged);
   };
 
-  const handleSearch = () => {
-    setCurrentPage(1);
-    loadLeads();
+  const handleSearch = async () => {
+    await loadLeads({ page: 1 });
   };
 
   const handleDeleteLead = async (id: string) => {
-    if (confirm("Are you sure you want to delete this lead?")) {
-      await deleteLead(id);
-      toast.success("Lead deleted successfully");
+    const ok = confirm("Are you sure you want to delete this lead?");
+    if (!ok) return;
+    const success = await remove(id);
+    if (success) {
+      await loadLeads();
     }
   };
 
-  const filteredLeads = leads.filter((lead) => {
-    if (!searchTerm) return true;
-    return (
-      lead.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.jobDescription.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
+  const onChangePage = async (nextPage: number) => {
+    if (!pagination) return;
+    if (nextPage < 1 || nextPage > (pagination.pages || 1)) return;
+    await loadLeads({ page: nextPage });
+  };
 
-  const getStatusColor = (status: string) => {
+  // UI helpers
+  const getStatusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      new: "bg-blue-100 text-blue-800",
+      interview_scheduled: "bg-yellow-100 text-yellow-800",
+      test_assigned: "bg-purple-100 text-purple-800",
+      completed: "bg-green-100 text-green-800",
+    };
+    return map[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const prettyStatus = (status: string) => {
     switch (status) {
-      case "New":
-        return "bg-blue-100 text-blue-800";
-      case "Interview Scheduled":
-        return "bg-yellow-100 text-yellow-800";
-      case "Test Assigned":
-        return "bg-purple-100 text-purple-800";
-      case "Completed":
-        return "bg-green-100 text-green-800";
+      case "new":
+        return "New";
+      case "interview_scheduled":
+        return "Interview Scheduled";
+      case "test_assigned":
+        return "Test Assigned";
+      case "completed":
+        return "Completed";
       default:
-        return "bg-gray-100 text-gray-800";
+        return status;
+    }
+  };
+
+  const prettySource = (source: string) => {
+    switch (source) {
+      case "website":
+        return "Website";
+      case "referral":
+        return "Referral";
+      case "linkedin":
+        return "LinkedIn";
+      case "job_board":
+        return "Job Board";
+      case "other":
+        return "Other";
+      default:
+        return source;
     }
   };
 
@@ -127,44 +168,63 @@ export default function LeadsPage() {
               Filters
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex gap-4">
+          <CardContent className="flex gap-4 flex-col md:flex-row">
             <div className="flex items-center gap-2 flex-1">
               <Search className="w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search leads..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 className="flex-1"
               />
               <Button onClick={handleSearch} size="sm">
                 Search
               </Button>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
+
+            <Select
+              value={statusFilter}
+              onValueChange={(val) => {
+                setStatusFilter(val as LeadStatus);
+                // reset to page 1 when filter changes
+                loadLeads({ page: 1, status: val as LeadStatus });
+              }}
+            >
+              <SelectTrigger className="w-full md:w-56">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="New">New</SelectItem>
-                <SelectItem value="Interview Scheduled">
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="interview_scheduled">
                   Interview Scheduled
                 </SelectItem>
-                <SelectItem value="Test Assigned">Test Assigned</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="test_assigned">Test Assigned</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="w-48">
+
+            <Select
+              value={sourceFilter}
+              onValueChange={(val) => {
+                setSourceFilter(val as LeadSource);
+                loadLeads({
+                  page: 1,
+                  source: val === "all" ? undefined : (val as LeadSource),
+                });
+              }}
+            >
+              <SelectTrigger className="w-full md:w-56">
                 <SelectValue placeholder="Filter by source" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sources</SelectItem>
-                <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                <SelectItem value="Indeed">Indeed</SelectItem>
-                <SelectItem value="Company Website">Company Website</SelectItem>
-                <SelectItem value="Referral">Referral</SelectItem>
+                <SelectItem value="website">Website</SelectItem>
+                <SelectItem value="referral">Referral</SelectItem>
+                <SelectItem value="linkedin">LinkedIn</SelectItem>
+                <SelectItem value="job_board">Job Board</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
           </CardContent>
@@ -174,7 +234,7 @@ export default function LeadsPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              Leads ({pagination?.total})
+              Leads ({totalCount})
               {isLoading && (
                 <span className="ml-2 text-sm text-muted-foreground">
                   Loading...
@@ -195,20 +255,28 @@ export default function LeadsPage() {
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
-                {filteredLeads.map((lead) => (
+                {items.map((lead) => (
                   <TableRow key={lead._id}>
                     <TableCell className="font-medium">
                       {lead.clientName}
                     </TableCell>
-                    <TableCell>{lead.jobDescription}</TableCell>
-                    <TableCell>{lead.source}</TableCell>
+                    <TableCell
+                      className="max-w-[420px] truncate"
+                      title={lead.jobDescription}
+                    >
+                      {lead.jobDescription}
+                    </TableCell>
+                    <TableCell>{prettySource(lead.source)}</TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(lead.status)}>
-                        {lead.status}
+                      <Badge className={getStatusBadge(lead.status)}>
+                        {prettyStatus(lead.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell>{lead.assignedTo || "Unassigned"}</TableCell>
+                    <TableCell>
+                      {lead.assignedTo?.username ?? "Unassigned"}
+                    </TableCell>
                     <TableCell>
                       {new Date(lead.createdAt).toLocaleDateString()}
                     </TableCell>
@@ -218,6 +286,7 @@ export default function LeadsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => router.push(`/leads/${lead._id}`)}
+                          title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -225,6 +294,7 @@ export default function LeadsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleDeleteLead(lead._id)}
+                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -232,48 +302,53 @@ export default function LeadsPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+
+                {!isLoading && items.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="text-center text-muted-foreground"
+                    >
+                      No leads found.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
 
             {/* Pagination */}
-            {/* {pagination?.totalPages > 1 && (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Page {pagination?.page ?? 1} of {pagination?.pages ?? 1}
+              </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  onClick={() => onChangePage((pagination?.page ?? 1) - 1)}
+                  disabled={!pagination?.hasPrev}
                 >
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground">
-                  Page {currentPage} of {pagination.totalPages}
-                </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setCurrentPage(
-                      Math.min(pagination.totalPages, currentPage + 1)
-                    )
-                  }
-                  disabled={currentPage === pagination.totalPages}
+                  onClick={() => onChangePage((pagination?.page ?? 1) + 1)}
+                  disabled={!pagination?.hasNext}
                 >
                   Next
                 </Button>
               </div>
             </div>
-          )} */}
           </CardContent>
         </Card>
 
         <AddLeadModal
           open={isAddModalOpen}
           onOpenChange={setIsAddModalOpen}
-          onSuccess={() => {
+          onSuccess={async () => {
             setIsAddModalOpen(false);
-            loadLeads();
+            await loadLeads({ page: 1 }); // refresh list
             toast.success("Lead created successfully");
           }}
         />

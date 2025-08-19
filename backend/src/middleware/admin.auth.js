@@ -18,7 +18,6 @@ const adminAuth = asyncHandler(async (req, res, next) => {
     if (!user || user.status !== "active") {
       throw new ApiError(401, "Invalid or inactive user");
     }
-
     req.user = user;
     next();
   } catch (error) {
