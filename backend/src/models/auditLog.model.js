@@ -4,31 +4,31 @@ import mongoose from 'mongoose';
 const auditLogSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: "AdminUser",
+    required: true,
   },
   action: {
     type: String,
-    required: true
+    required: true,
   },
   entity: {
     type: String,
-    required: true
+    required: true,
   },
   entityId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true
+    required: true,
   },
   oldValues: {
-    type: mongoose.Schema.Types.Mixed
+    type: mongoose.Schema.Types.Mixed,
   },
   newValues: {
-    type: mongoose.Schema.Types.Mixed
+    type: mongoose.Schema.Types.Mixed,
   },
   timestamp: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 // Add indexes for efficient querying

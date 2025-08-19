@@ -4,22 +4,22 @@ import mongoose from 'mongoose';
 const leadNoteSchema = new mongoose.Schema({
   leadId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Lead',
-    required: true
+    ref: "Lead",
+    required: true,
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: "AdminUser",
+    required: true,
   },
   text: {
     type: String,
-    required: true
+    required: true,
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 // Add indexes for efficient querying

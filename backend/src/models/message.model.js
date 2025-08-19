@@ -4,26 +4,26 @@ import mongoose from 'mongoose';
 const messageSchema = new mongoose.Schema({
   leadId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Lead',
-    required: true
+    ref: "Lead",
+    required: true,
   },
   senderId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: "AdminUser",
+    required: true,
   },
   content: {
     type: String,
-    required: true
+    required: true,
   },
   timestamp: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   readStatus: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 // Add indexes for efficient querying

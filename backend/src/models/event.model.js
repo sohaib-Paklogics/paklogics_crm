@@ -1,41 +1,44 @@
 
 import mongoose from 'mongoose';
 
-const eventSchema = new mongoose.Schema({
-  leadId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Lead',
-    required: true
+const eventSchema = new mongoose.Schema(
+  {
+    leadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lead",
+      required: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AdminUser",
+      required: true,
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    startTime: {
+      type: Date,
+      required: true,
+    },
+    endTime: {
+      type: Date,
+      required: true,
+    },
+    timezone: {
+      type: String,
+      required: true,
+      default: "UTC",
+    },
+    description: {
+      type: String,
+    },
   },
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  {
+    timestamps: true,
   },
-  title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  startTime: {
-    type: Date,
-    required: true
-  },
-  endTime: {
-    type: Date,
-    required: true
-  },
-  timezone: {
-    type: String,
-    required: true,
-    default: 'UTC'
-  },
-  description: {
-    type: String
-  }
-}, {
-  timestamps: true
-});
+);
 
 // Add indexes for efficient querying
 eventSchema.index({ userId: 1, startTime: 1 });

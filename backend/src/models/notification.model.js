@@ -4,31 +4,31 @@ import mongoose from 'mongoose';
 const notificationSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: "AdminUser",
+    required: true,
   },
   type: {
     type: String,
     required: true,
-    enum: ['Email', 'SMS']
+    enum: ["Email", "SMS"],
   },
   content: {
     type: String,
-    required: true
+    required: true,
   },
   sentAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   status: {
     type: String,
-    enum: ['pending', 'sent', 'failed'],
-    default: 'pending'
+    enum: ["pending", "sent", "failed"],
+    default: "pending",
   },
   readStatus: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 // Add indexes for efficient querying
