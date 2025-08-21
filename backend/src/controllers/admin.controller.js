@@ -8,7 +8,6 @@ import RolePermissions from "../models/permission.model.js";
 export const login = asyncHandler(async (req, res) => {
   const data = await validator.loginSchema.validateAsync(req.body);
   const result = await service.login(data);
-  console.log("Login result:", result);
   res.json(ApiResponse.success(result, "Login successful"));
 });
 

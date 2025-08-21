@@ -5,11 +5,24 @@ export type LeadStatus =
   | "test_assigned"
   | "completed";
 export type LeadSource =
+  | "all"
   | "website"
   | "referral"
   | "linkedin"
   | "job_board"
   | "other";
+
+export type Stage = {
+  _id: string;
+  name: string;
+  key: string;
+  color: string;
+  order: number;
+  isDefault: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export interface Lead {
   _id: string;
@@ -23,7 +36,8 @@ export interface Lead {
     role: string;
     status: string;
   } | null;
-  status: LeadStatus;
+  status: string;
+  stage?: Stage | string;
   notes?: string | null;
   createdBy: { _id: string; username: string; email: string };
   createdAt: string;

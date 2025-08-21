@@ -6,6 +6,8 @@ import attachmentRoutes from "./attachment.js";
 import noteRoutes from "./note.js";
 import eventRoutes from "./event.js";
 import messageRoutes from "./message.js";
+import stageRoutes from "./stage.js";
+import testTaskRoutes from "./testTask.js";
 
 import calendarRoutes from "./calendar.js";
 import notesRoutes from "./note.js";
@@ -19,11 +21,13 @@ const router = express.Router();
 router.use("/admin-auth", adminRoutes);
 router.use("/leads", leadsRoutes);
 router.use("/kanban", kanbanRoutes);
+router.use("/stages", stageRoutes);
 
 router.use("/", attachmentRoutes);
 router.use("/", noteRoutes);
 router.use("/", eventRoutes);
 router.use("/", messageRoutes);
+router.use("/", testTaskRoutes);
 
 router.use("/calendar", calendarRoutes);
 router.use("/notes", notesRoutes);

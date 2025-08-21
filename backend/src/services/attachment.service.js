@@ -1,18 +1,8 @@
 import Attachment from "../models/attachment.model.js";
 import ApiError from "../utils/ApiError.js";
 import { getPagination, paginate } from "../utils/pagination.js";
-import cloudinary from "../utils/cloudinary.js";
-import streamifier from "streamifier";
+import cloudinary, { streamUpload } from "../utils/cloudinary.js";
 
-function streamUpload(buffer, folder) {
-  return new Promise((resolve, reject) => {
-    const cld_upload_stream = cloudinary.uploader.upload_stream({ folder }, (error, result) => {
-      if (error) reject(error);
-      else resolve(result);
-    });
-    streamifier.createReadStream(buffer).pipe(cld_upload_stream);
-  });
-}
 
 export async function uploadAttachment({ leadId, file, uploadedBy }) {
   if (!file) throw new ApiError(400, "No file provided");

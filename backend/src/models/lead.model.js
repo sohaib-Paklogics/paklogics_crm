@@ -23,8 +23,13 @@ const leadSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["new", "interview_scheduled", "test_assigned", "completed"],
+      trim: true,
       default: "new",
+    },
+    stage: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Stage",
+      index: true,
     },
     notes: {
       type: String,

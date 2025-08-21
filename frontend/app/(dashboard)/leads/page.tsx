@@ -29,20 +29,7 @@ import { AddLeadModal } from "@/components/modals/add-lead-modal";
 
 // ✅ Uses the store API we implemented earlier
 import { useLeadsStore } from "@/stores/leads.store";
-
-type LeadStatus =
-  | "all"
-  | "new"
-  | "interview_scheduled"
-  | "test_assigned"
-  | "completed";
-type LeadSource =
-  | "all"
-  | "website"
-  | "referral"
-  | "linkedin"
-  | "job_board"
-  | "other";
+import { LeadSource } from "@/types/lead";
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -50,7 +37,7 @@ export default function LeadsPage() {
   // UI state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<LeadStatus>("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState<LeadSource>("all");
 
   // Store
@@ -186,9 +173,9 @@ export default function LeadsPage() {
             <Select
               value={statusFilter}
               onValueChange={(val) => {
-                setStatusFilter(val as LeadStatus);
+                setStatusFilter(val as string);
                 // reset to page 1 when filter changes
-                loadLeads({ page: 1, status: val as LeadStatus });
+                loadLeads({ page: 1, status: val as string });
               }}
             >
               <SelectTrigger className="w-full md:w-56">

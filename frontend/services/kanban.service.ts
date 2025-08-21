@@ -1,36 +1,24 @@
-// src/services/kanban.service.ts
+// services/kanban.service.ts
 import api from "@/lib/api";
-import type { ApiResponse, KanbanBoard, Lead } from "@/types/lead";
+import type { ApiResponse, Lead, Stage } from "@/types/lead";
 
-type KanbanQuery = {
-  limit?: number;
-  newPage?: number;
-  interview_scheduledPage?: number;
-  test_assignedPage?: number;
-  completedPage?: number;
-  search?: string;
-  assignedTo?: string;
-  source?: string;
+export type BoardResponse = {
+  stages: Stage[];
+  columns: Record<string, { stage: Stage; data: Lead[]; count: number }>;
 };
 
 export const kanbanService = {
   board: async (
-    params: KanbanQuery = {}
-  ): Promise<ApiResponse<KanbanBoard>> => {
-    const { data } = await api.get<ApiResponse<KanbanBoard>>("/kanban/leads", {
-      params,
-    });
-    return data;
+    params?: Record<string, any>
+  ): Promise<ApiResponse<BoardResponse>> => {
+    const res = await api.get("/kanban/board", { params });
+    return res.data;
   },
-
   move: async (
-    id: string,
-    status: Lead["status"]
+    leadId: string,
+    toStageId: string
   ): Promise<ApiResponse<Lead>> => {
-    const { data } = await api.patch<ApiResponse<Lead>>(
-      `/kanban/leads/${id}/move`,
-      { status }
-    );
-    return data;
+    const res = await api.patch(`/kanban/leads/${leadId}/move`, { toStageId });
+    return res.data;
   },
 };

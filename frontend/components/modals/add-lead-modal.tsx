@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import { useLeadsStore } from "@/stores/leads.store";
+import { useStagesStore } from "@/stores/stages.store"; // <- dynamic stages
+import { useUserStore } from "@/stores/user-store";
+
+type LeadSource = "website" | "referral" | "linkedin" | "job_board" | "other";
 
 interface AddLeadModalProps {
   open: boolean;
@@ -27,33 +32,73 @@ interface AddLeadModalProps {
   onSuccess?: () => void;
 }
 
-type LeadStatus = "new" | "interview_scheduled" | "test_assigned" | "completed";
-type LeadSource = "website" | "referral" | "linkedin" | "job_board" | "other";
-
 export function AddLeadModal({
   open,
   onOpenChange,
   onSuccess,
 }: AddLeadModalProps) {
-  const { create, isLoading } = useLeadsStore();
+  const { create, isLoading: creating } = useLeadsStore();
+
+  // stages
+  const {
+    items: stages,
+    fetch: fetchStages,
+    isLoading: stagesLoading,
+  } = useStagesStore();
+
+  // users (we’ll filter to developers for assignment)
+  const { users, fetchUsers, loading } = useUserStore();
 
   const [formData, setFormData] = useState<{
     clientName: string;
     jobDescription: string;
     source: LeadSource | "";
-    status: LeadStatus;
-    assignedTo: string; // ObjectId string; leave empty to omit
+    stageId: string; // ObjectId of Stage
+    assignedTo: string; // ObjectId of AdminUser (developer)
     notes: string;
   }>({
     clientName: "",
     jobDescription: "",
     source: "",
-    status: "new",
+    stageId: "",
     assignedTo: "",
     notes: "",
   });
 
-  const handleInputChange = (field: string, value: string) => {
+  // load stages + developers when modal opens
+  useEffect(() => {
+    if (!open) return;
+    fetchStages();
+    // You can filter at API, but if not, fetch and filter client-side:
+    fetchUsers?.({ page: 1, limit: 10 } as any);
+  }, [open, fetchStages, fetchUsers]);
+  console.log("AddLeadModal: users", users);
+
+  // pick default stage (isDefault) when stages loaded
+  useEffect(() => {
+    if (!open) return;
+    if (!formData.stageId && stages?.length) {
+      const def = stages.find((s: any) => s.isDefault) ?? stages[0];
+      if (def?._id) {
+        setFormData((p) => ({ ...p, stageId: def._id }));
+      }
+    }
+  }, [open, stages, formData.stageId]);
+
+  const selectedStage = useMemo(
+    () => stages?.find((s: any) => String(s._id) === String(formData.stageId)),
+    [stages, formData.stageId]
+  );
+
+  // status is derived from stage.key (read-only)
+  const derivedStatus = selectedStage?.key ?? "new";
+
+  const developers = useMemo(
+    () => (users || []).filter((u: any) => u.role === "developer"),
+    [users]
+  );
+
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -62,25 +107,28 @@ export function AddLeadModal({
       clientName: "",
       jobDescription: "",
       source: "",
-      status: "new",
+      stageId: "",
       assignedTo: "",
       notes: "",
     });
   };
 
+  const isBusy = creating || stagesLoading || loading;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // minimal guard (server validates again)
-    if (!formData.clientName || !formData.jobDescription || !formData.source) {
+    if (!formData.clientName || !formData.jobDescription || !formData.source)
       return;
-    }
+    if (!formData.stageId) return;
 
     const payload: any = {
       clientName: formData.clientName,
       jobDescription: formData.jobDescription,
       source: formData.source,
-      status: formData.status,
+      // dynamic pipeline bits
+      stage: formData.stageId,
+      status: derivedStatus, // mirrors stage.key for backwards compatibility
     };
 
     if (formData.assignedTo) payload.assignedTo = formData.assignedTo;
@@ -95,12 +143,13 @@ export function AddLeadModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>Add New Lead</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Row 1 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="clientName">Client Name *</Label>
@@ -111,7 +160,7 @@ export function AddLeadModal({
                   handleInputChange("clientName", e.target.value)
                 }
                 required
-                disabled={isLoading}
+                disabled={isBusy}
               />
             </div>
 
@@ -119,8 +168,10 @@ export function AddLeadModal({
               <Label htmlFor="source">Source *</Label>
               <Select
                 value={formData.source}
-                onValueChange={(value) => handleInputChange("source", value)}
-                disabled={isLoading}
+                onValueChange={(value) =>
+                  handleInputChange("source", value as LeadSource)
+                }
+                disabled={isBusy}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select source" />
@@ -136,6 +187,7 @@ export function AddLeadModal({
             </div>
           </div>
 
+          {/* Job Description */}
           <div className="space-y-2">
             <Label htmlFor="jobDescription">Job Description *</Label>
             <Textarea
@@ -146,46 +198,76 @@ export function AddLeadModal({
               }
               rows={3}
               required
-              disabled={isLoading}
+              disabled={isBusy}
             />
           </div>
 
+          {/* Row 2: Stage + Developer */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="stage">Pipeline Stage *</Label>
               <Select
-                value={formData.status}
-                onValueChange={(value) => handleInputChange("status", value)}
-                disabled={isLoading}
+                value={formData.stageId}
+                onValueChange={(value) => handleInputChange("stageId", value)}
+                disabled={isBusy || !stages?.length}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue
+                    placeholder={
+                      stagesLoading ? "Loading stages..." : "Select stage"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="interview_scheduled">
-                    Interview Scheduled
-                  </SelectItem>
-                  <SelectItem value="test_assigned">Test Assigned</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
+                  {(stages || []).map((s: any) => (
+                    <SelectItem key={s._id} value={s._id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Read-only status hint */}
+              <p className="text-xs text-muted-foreground">
+                Status:{" "}
+                <span className="font-medium">
+                  {derivedStatus.replace("_", " ")}
+                </span>
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="assignedTo">Assign Developer</Label>
+              <Select
+                // if no assignee, select the sentinel "unassigned"
+                value={formData.assignedTo ? formData.assignedTo : "unassigned"}
+                onValueChange={(value) =>
+                  handleInputChange(
+                    "assignedTo",
+                    value === "unassigned" ? "" : value
+                  )
+                }
+                disabled={isBusy}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={loading ? "Loading users..." : "Optional"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* <-- sentinel value (NOT empty string) */}
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+
+                  {developers.map((u: any) => (
+                    <SelectItem key={u._id} value={u._id}>
+                      {u.username}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="assignedTo">Assigned To (User ID)</Label>
-              <Input
-                id="assignedTo"
-                value={formData.assignedTo}
-                onChange={(e) =>
-                  handleInputChange("assignedTo", e.target.value)
-                }
-                placeholder="Optional: AdminUser ObjectId"
-                disabled={isLoading}
-              />
-            </div>
           </div>
 
+          {/* Notes */}
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea
@@ -194,29 +276,33 @@ export function AddLeadModal({
               onChange={(e) => handleInputChange("notes", e.target.value)}
               rows={3}
               placeholder="Add any additional notes..."
-              disabled={isLoading}
+              disabled={isBusy}
             />
           </div>
 
+          {/* Actions */}
           <div className="flex justify-end space-x-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isLoading}
+              disabled={isBusy}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={
-                isLoading ||
+                isBusy ||
                 !formData.clientName ||
                 !formData.jobDescription ||
-                !formData.source
+                !formData.source ||
+                !formData.stageId
               }
             >
-              {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {(creating || stagesLoading) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               Add Lead
             </Button>
           </div>

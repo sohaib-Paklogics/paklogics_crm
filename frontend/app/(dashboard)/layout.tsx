@@ -13,7 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   // Initialize socket connection
-  useSocket();
+  // useSocket();
 
   return (
     <SidebarProvider>

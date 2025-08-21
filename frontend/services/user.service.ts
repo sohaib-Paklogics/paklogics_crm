@@ -10,6 +10,7 @@ export const userService = {
     const response = await api.get<ApiResponse>("/admin-auth", {
       params,
     });
+    console.log("Fetched users:", response.data);
     return response.data;
   },
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DragDropContext,
   Droppable,
@@ -13,7 +13,6 @@ import { MoreVertical, Plus, User } from "lucide-react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -26,26 +25,21 @@ import {
 
 import useAuthStore from "@/stores/auth-store";
 import { useKanbanStore } from "@/stores/kanban.store";
-import type { Lead, LeadStatus } from "@/types/lead";
+import { useStagesStore } from "@/stores/stages.store";
+import type { Lead, Stage } from "@/types/lead";
+import { StageActions } from "@/components/StageActions";
+import ButtonLoader from "@/components/common/ButtonLoader";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { AddLeadModal } from "@/components/modals/add-lead-modal";
 
-const COLUMNS: { id: LeadStatus; title: string; color: string }[] = [
-  { id: "new", title: "New", color: "bg-validiz-mustard" },
-  {
-    id: "interview_scheduled",
-    title: "Interview Scheduled",
-    color: "bg-blue-500",
-  },
-  { id: "test_assigned", title: "Test Assigned", color: "bg-orange-500" },
-  { id: "completed", title: "Completed", color: "bg-green-500" },
-];
-
-/** Fix for React 18 StrictMode + react-beautiful-dnd */
+/** React 18 StrictMode helper for react-beautiful-dnd */
 function StrictModeDroppable(props: DroppableProps) {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
-    const animation = requestAnimationFrame(() => setEnabled(true));
+    const raf = requestAnimationFrame(() => setEnabled(true));
     return () => {
-      cancelAnimationFrame(animation);
+      cancelAnimationFrame(raf);
       setEnabled(false);
     };
   }, []);
@@ -56,63 +50,83 @@ function StrictModeDroppable(props: DroppableProps) {
 export default function KanbanPage() {
   const { user, hasPermission } = useAuthStore();
   const { board, isLoading, fetchBoard, moveCard } = useKanbanStore();
-  const [mounted, setMounted] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // ⬇️ pull adjacent-insert helpers so StageActions doesn’t do ordering logic
+  const {
+    items: stages,
+    fetch: fetchStages,
+    isLoading: stagesLoading,
+    addBefore,
+    addAfter,
+  } = useStagesStore();
+
+  const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (!user) return;
-    // Fetch board with role-based server filters
-    const params: Record<string, any> = { limit: 50 };
+  const buildBoardParams = useCallback(() => {
+    const params: Record<string, any> = { limit: 100 };
+    if (!user) return params;
     if (user.role === "business_developer") params.createdBy = user.id;
     if (user.role === "developer") params.assignedTo = user.id;
-    fetchBoard(params);
-  }, [user, fetchBoard]);
+    return params;
+  }, [user]);
+
+  const refreshBoard = useCallback(async () => {
+    // always fetch stages first (sorted by `order` in store), then board
+    await fetchStages();
+    await fetchBoard(buildBoardParams());
+  }, [fetchStages, fetchBoard, buildBoardParams]);
+
+  // initial loads
+  useEffect(() => {
+    if (!user) return;
+    refreshBoard();
+  }, [user, refreshBoard]);
 
   const canDragDrop =
     hasPermission({ action: "update", resource: "leads" }) ||
-    // optional: allow admins by default
     (user && (user.role === "admin" || user.role === "superadmin"));
 
   const applyRoleFilter = (items: Lead[]) => {
     if (!user) return [];
     if (user.role === "admin" || user.role === "superadmin") return items;
+
     if (user.role === "business_developer") {
       return items.filter(
         (l) =>
-          (typeof l.createdBy === "string" ? l.createdBy : l.createdBy?._id) ===
-          user.id
+          String(
+            typeof l.createdBy === "string" ? l.createdBy : l.createdBy?._id
+          ) === String(user.id)
       );
     }
     if (user.role === "developer") {
       return items.filter(
         (l) =>
-          (typeof l.assignedTo === "string"
-            ? l.assignedTo
-            : l.assignedTo?._id) === user.id
+          String(
+            typeof l.assignedTo === "string" ? l.assignedTo : l.assignedTo?._id
+          ) === String(user.id)
       );
     }
     return items;
   };
 
-  const columnData = useMemo(() => {
-    return {
-      new: applyRoleFilter(board?.new?.data ?? []),
-      interview_scheduled: applyRoleFilter(
-        board?.interview_scheduled?.data ?? []
-      ),
-      test_assigned: applyRoleFilter(board?.test_assigned?.data ?? []),
-      completed: applyRoleFilter(board?.completed?.data ?? []),
-    } as Record<LeadStatus, Lead[]>;
-  }, [board, user]);
+  // Build columns from dynamic stages (store already sorts by `order`)
+  const columns = useMemo(() => {
+    const colEntries: { stage: Stage; leads: Lead[] }[] = [];
+    if (!board || !stages?.length) return colEntries;
 
-  const totalFiltered = useMemo(
-    () =>
-      columnData.new.length +
-        columnData.interview_scheduled.length +
-        columnData.test_assigned.length +
-        columnData.completed.length || 0,
-    [columnData]
+    for (const s of stages) {
+      const col = board.columns[String(s._id)];
+      const leads = applyRoleFilter(col?.data ?? []);
+      colEntries.push({ stage: s, leads });
+    }
+    return colEntries;
+  }, [board, stages, user]);
+
+  const total = useMemo(
+    () => columns.reduce((sum, c) => sum + c.leads.length, 0),
+    [columns]
   );
 
   if (!mounted || !user) {
@@ -130,17 +144,19 @@ export default function KanbanPage() {
     const { source, destination, draggableId } = result;
     if (!destination) return;
 
-    const from = source.droppableId as LeadStatus;
-    const to = destination.droppableId as LeadStatus;
-
+    const from = source.droppableId;
+    const to = destination.droppableId;
     if (from === to && destination.index === source.index) return;
 
-    await moveCard(String(draggableId), from, to);
+    await moveCard(String(draggableId), String(from), String(to));
   };
 
-  const changeStatusViaMenu = async (lead: Lead, to: LeadStatus) => {
-    if (lead.status === to) return;
-    await moveCard(String(lead._id), lead.status as LeadStatus, to);
+  const changeStatusViaMenu = async (lead: Lead, toStageId: string) => {
+    const fromId = String(
+      typeof lead.stage === "string" ? lead.stage : lead.stage?._id
+    );
+    if (fromId === toStageId) return;
+    await moveCard(String(lead._id), fromId, toStageId);
   };
 
   return (
@@ -157,21 +173,36 @@ export default function KanbanPage() {
               {!canDragDrop && " (Read-only view)"}
             </p>
           </div>
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Lead
+          </Button>
         </div>
 
         {/* Kanban Board */}
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {COLUMNS.map((col) => (
+            {(stagesLoading ? [] : columns).map(({ stage, leads }) => (
               <KanbanColumn
-                key={col.id}
-                columnId={col.id}
-                title={col.title}
-                color={col.color}
-                leads={columnData[col.id]}
+                key={stage._id}
+                stage={stage}
+                leads={leads}
                 canDragDrop={!!canDragDrop}
-                isLoading={isLoading}
+                isLoading={isLoading || stagesLoading}
+                allStages={stages}
                 onChangeStatus={changeStatusViaMenu}
+                // ⬇️ pass *functions* to StageActions; StageActions shouldn’t know ordering logic
+                stageActions={{
+                  addBefore: async (name: string, color?: string) => {
+                    await addBefore(stage._id, name, color);
+                    await refreshBoard();
+                  },
+                  addAfter: async (name: string, color?: string) => {
+                    await addAfter(stage._id, name, color);
+                    await refreshBoard();
+                  },
+                  refresh: refreshBoard, // optional, if StageActions needs it
+                }}
               />
             ))}
           </div>
@@ -186,68 +217,86 @@ export default function KanbanPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {COLUMNS.map((col) => {
-                const count = columnData[col.id].length;
-                const pct =
-                  totalFiltered > 0
-                    ? Math.round((count / totalFiltered) * 100)
-                    : 0;
+              {columns.map(({ stage, leads }) => {
+                const percent = total
+                  ? Math.round((leads.length / total) * 100)
+                  : 0;
                 return (
-                  <div key={col.id} className="text-center">
+                  <div key={stage._id} className="text-center">
                     <div
-                      className={`w-4 h-4 rounded-full ${col.color} mx-auto mb-2`}
+                      className="w-4 h-4 rounded-full mx-auto mb-2"
+                      style={{ background: stage.color }}
                     />
                     <p className="text-2xl font-bold text-validiz-brown">
-                      {count}
+                      {leads.length}
                     </p>
-                    <p className="text-sm text-gray-600">{col.title}</p>
-                    <p className="text-xs text-gray-500">{pct}% of total</p>
+                    <p className="text-sm text-gray-600">{stage.name}</p>
+                    <p className="text-xs text-gray-500">{percent}% of total</p>
                   </div>
                 );
               })}
             </div>
           </CardContent>
         </Card>
+
+        <AddLeadModal
+          open={isAddModalOpen}
+          onOpenChange={setIsAddModalOpen}
+          onSuccess={async () => {
+            setIsAddModalOpen(false);
+            await fetchBoard(buildBoardParams());
+          }}
+        />
       </div>
     </MainLayout>
   );
 }
 
-/* ===========================
-   Sub-components
-   =========================== */
+/* ---------- Sub-components ---------- */
 
 function KanbanColumn({
-  columnId,
-  title,
-  color,
+  stage,
   leads,
   canDragDrop,
   isLoading,
+  allStages,
   onChangeStatus,
+  stageActions,
 }: {
-  columnId: LeadStatus;
-  title: string;
-  color: string;
+  stage: Stage;
   leads: Lead[];
   canDragDrop: boolean;
   isLoading: boolean;
-  onChangeStatus: (lead: Lead, to: LeadStatus) => Promise<void>;
+  allStages: Stage[];
+  onChangeStatus: (lead: Lead, toStageId: string) => Promise<void>;
+  stageActions: {
+    addBefore: (name: string, color?: string) => Promise<void>;
+    addAfter: (name: string, color?: string) => Promise<void>;
+    refresh?: () => Promise<void>;
+  };
 }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 rounded-full ${color}`} />
-          <h3 className="font-semibold text-validiz-brown">{title}</h3>
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ background: stage.color }}
+          />
+          <h3 className="font-semibold text-validiz-brown">{stage.name}</h3>
         </div>
-        <Badge variant="secondary" className="bg-gray-100 text-gray-600">
-          {isLoading ? "…" : leads.length}
-        </Badge>
+
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+            {isLoading ? <ButtonLoader color="border-black" /> : leads.length}
+          </Badge>
+
+          {/* ✅ StageActions now receives *functions*, not inline code */}
+          <StageActions stage={stage} actions={stageActions} />
+        </div>
       </div>
 
-      {/* StrictMode-safe Droppable */}
-      <StrictModeDroppable droppableId={String(columnId)}>
+      <StrictModeDroppable droppableId={String(stage._id)}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
@@ -259,13 +308,16 @@ function KanbanColumn({
             }`}
           >
             {leads.map((lead, index) => (
-              <LeadCard
-                key={String(lead._id)}
-                lead={lead}
-                index={index}
-                canDragDrop={canDragDrop}
-                onChangeStatus={onChangeStatus}
-              />
+              <Link href={`/leads/${lead._id}`} key={String(lead._id)}>
+                <LeadCard
+                  key={String(lead._id)}
+                  lead={lead}
+                  index={index}
+                  canDragDrop={canDragDrop}
+                  allStages={allStages}
+                  onChangeStatus={onChangeStatus}
+                />
+              </Link>
             ))}
             {provided.placeholder}
 
@@ -290,20 +342,29 @@ function LeadCard({
   lead,
   index,
   canDragDrop,
+  allStages,
   onChangeStatus,
 }: {
   lead: Lead;
   index: number;
   canDragDrop: boolean;
-  onChangeStatus: (lead: Lead, to: LeadStatus) => Promise<void>;
+  allStages: Stage[];
+  onChangeStatus: (lead: Lead, toStageId: string) => Promise<void>;
 }) {
   const whileDragging = (isDragging: boolean) =>
     `mb-3 ${isDragging ? "rotate-2" : ""}`;
-
   const hoverScale = (isDragging: boolean) =>
     `cursor-pointer transition-all hover:shadow-md ${
       !isDragging && canDragDrop ? "hover:scale-105" : ""
     }`;
+  const assigned =
+    lead.assignedTo && typeof lead.assignedTo === "object"
+      ? lead.assignedTo
+      : null;
+
+  const stageId = String(
+    typeof lead.stage === "string" ? lead.stage : lead.stage?._id
+  );
 
   return (
     <Draggable
@@ -331,7 +392,6 @@ function LeadCard({
                     </p>
                   </div>
 
-                  {/* 3-dot menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -342,27 +402,24 @@ function LeadCard({
                         <MoreVertical className="h-4 w-4 text-gray-500" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuLabel>Move to…</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      {(
-                        [
-                          "new",
-                          "interview_scheduled",
-                          "test_assigned",
-                          "completed",
-                        ] as LeadStatus[]
-                      ).map((s) => (
+                      {allStages.map((s) => (
                         <DropdownMenuItem
-                          key={s}
-                          disabled={lead.status === s}
+                          key={s._id}
+                          disabled={String(s._id) === stageId}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onChangeStatus(lead, s);
+                            onChangeStatus(lead, String(s._id));
                           }}
-                          className="capitalize"
+                          className="flex items-center justify-between"
                         >
-                          {s.replace("_", " ")}
+                          <span>{s.name}</span>
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ background: s.color }}
+                          />
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -376,17 +433,15 @@ function LeadCard({
                       : lead.source.replace("_", " ")}
                   </Badge>
                   <div className="flex items-center space-x-1">
-                    {lead.assignedTo ? (
+                    {assigned ? (
                       <div className="flex items-center space-x-1">
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs bg-validiz-brown text-white">
-                            {lead.assignedTo.username
-                              ?.charAt(0)
-                              ?.toUpperCase() ?? "U"}
+                            {assigned.username?.charAt(0)?.toUpperCase() ?? "U"}
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-xs text-gray-600">
-                          {lead.assignedTo.username}
+                          {assigned.username}
                         </span>
                       </div>
                     ) : (

@@ -1,69 +1,72 @@
-// src/store/kanban.store.ts
 import { create } from "zustand";
-import { callApi } from "@/lib/callApi";
 import { kanbanService } from "@/services/kanban.service";
-import type { KanbanBoard, Lead } from "@/types/lead";
+import type { Lead, Stage } from "@/types/lead";
+import { callApi } from "@/lib/callApi";
 
-type ColumnKey = keyof KanbanBoard; // "new" | "interview_scheduled" | "test_assigned" | "completed"
+type Column = { stage: Stage; data: Lead[]; count: number };
+type Board = { stages: Stage[]; columns: Record<string, Column> };
 
-interface KanbanState {
-  board: KanbanBoard | null;
+type KanbanState = {
+  board: Board | null;
   isLoading: boolean;
-
+  error: string | null;
   fetchBoard: (params?: Record<string, any>) => Promise<void>;
   moveCard: (
     leadId: string,
-    from: ColumnKey,
-    to: ColumnKey
-  ) => Promise<boolean>;
-}
+    fromStageId: string,
+    toStageId: string
+  ) => Promise<void>;
+};
 
 export const useKanbanStore = create<KanbanState>((set, get) => ({
   board: null,
   isLoading: false,
+  error: null,
 
-  fetchBoard: async (params = {}) => {
-    set({ isLoading: true });
+  fetchBoard: async (params) => {
+    set({ isLoading: true, error: null });
     const res = await callApi(() => kanbanService.board(params), {
+      showError: true,
       showSuccess: false,
     });
-    if (res?.success) set({ board: res.data, isLoading: false });
-    else set({ isLoading: false });
+    if (res?.success) {
+      set({ board: res.data as Board, isLoading: false });
+    } else {
+      set({ isLoading: false, error: res?.message || "Failed to load board" });
+    }
   },
 
-  // Optimistic move
-  moveCard: async (leadId, from, to) => {
-    const { board } = get();
-    if (!board) return false;
-
+  moveCard: async (leadId, fromStageId, toStageId) => {
     // optimistic update
-    const prev = JSON.parse(JSON.stringify(board)) as KanbanBoard;
-    const fromList = [...board[from].data];
-    const toList = [...board[to].data];
+    const prev = get().board;
+    if (!prev) return;
 
-    const idx = fromList.findIndex((l) => l._id === leadId);
-    if (idx < 0) return false;
+    const next: Board = {
+      ...prev,
+      columns: { ...prev.columns },
+    };
 
-    const card = { ...fromList[idx], status: to as Lead["status"] };
-    fromList.splice(idx, 1);
-    toList.unshift(card);
-
-    set({
-      board: {
-        ...board,
-        [from]: { ...board[from], data: fromList },
-        [to]: { ...board[to], data: toList },
-      },
-    });
-
-    const apiRes = await callApi(() => kanbanService.move(leadId, to), {
-      showSuccess: false,
-    });
-    if (!apiRes?.success) {
-      // revert on failure
-      set({ board: prev });
-      return false;
+    const fromCol = { ...next.columns[fromStageId] };
+    const toCol = { ...next.columns[toStageId] };
+    const idx = fromCol.data.findIndex((l) => String(l._id) === String(leadId));
+    if (idx > -1) {
+      const [moved] = fromCol.data.splice(idx, 1);
+      moved.stage = toCol.stage._id;
+      moved.status = toCol.stage.key;
+      toCol.data.unshift(moved);
+      fromCol.count = fromCol.data.length;
+      toCol.count = toCol.data.length;
+      next.columns[fromStageId] = fromCol;
+      next.columns[toStageId] = toCol;
+      set({ board: next });
     }
-    return true;
+
+    const res = await callApi(() => kanbanService.move(leadId, toStageId), {
+      showError: true,
+    });
+    if (!res?.success) {
+      // revert on error
+      set({ board: prev });
+    }
   },
 }));

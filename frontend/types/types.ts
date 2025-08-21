@@ -101,7 +101,8 @@ export interface CalendarEvent {
 }
 
 export interface AdminUser {
-  id: string; // Mongoose _id as string
+  id: string;
+  _id?: string;
   username: string;
   email: string;
   password?: string; // optional because we won't send it to client
