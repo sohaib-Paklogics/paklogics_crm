@@ -103,12 +103,22 @@ export interface LeadNote {
 export interface LeadEvent {
   _id: string;
   leadId: string;
-  userId: { _id: string; username: string; email: string };
+  userId: {
+    _id: string;
+    username: string;
+    email: string;
+  };
   title: string;
   startTime: string;
   endTime: string;
   timezone: string;
   description?: string;
+  status:
+    | "scheduled"
+    | "in-progress"
+    | "completed"
+    | "canceled"
+    | "rescheduled";
   createdAt: string;
   updatedAt: string;
 }

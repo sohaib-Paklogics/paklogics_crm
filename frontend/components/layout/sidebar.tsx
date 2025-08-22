@@ -24,12 +24,6 @@ import useAuthStore from "@/stores/auth-store";
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home, permission: null },
   {
-    name: "Leads",
-    href: "/leads",
-    icon: FileText,
-    permission: { action: "read", resource: "leads" },
-  },
-  {
     name: "Kanban",
     href: "/kanban",
     icon: Kanban,
@@ -59,7 +53,6 @@ export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout, hasPermission } = useAuthStore();
-  console.log("Sidebar user:", user);
 
   if (!user) return null;
 
@@ -67,7 +60,6 @@ export function Sidebar() {
     if (!item.permission) return true;
     return hasPermission(item.permission);
   });
-  console.log("Filtered navigation:", filteredNavigation);
   const handleLogout = () => {
     logout();
     window.location.href = "/login";

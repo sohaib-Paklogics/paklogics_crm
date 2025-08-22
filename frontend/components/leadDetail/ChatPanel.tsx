@@ -1,31 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-
 import { ScrollArea } from "../ui/scroll-area";
+import { useMessagesStore } from "@/stores/messages.store";
 
-const ChatPanel = ({
-  leadId,
-  messages,
-  sending,
-  onSend,
-}: {
-  leadId: string;
-  messages: Array<{
-    _id: string;
-    senderId: { _id: string; username: string } | string;
-    content: string;
-    timestamp: string;
-  }>;
-  sending: boolean;
-  onSend: (text: string) => Promise<void>;
-}) => {
+export default function ChatPanel({ leadId }: { leadId: string }) {
+  const { items: messages, fetch, send, isLoading } = useMessagesStore();
   const [text, setText] = useState("");
+
+  useEffect(() => {
+    fetch(leadId, 1, 50);
+  }, [leadId, fetch]);
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    const ok = await send(leadId, text.trim());
+    if (ok) {
+      setText("");
+      await fetch(leadId, 1, 50);
+    }
+  };
 
   return (
     <Card>
@@ -75,26 +74,14 @@ const ChatPanel = ({
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={async (e) => {
-              if (e.key === "Enter" && text.trim()) {
-                await onSend(text.trim());
-                setText("");
-              }
+              if (e.key === "Enter") await handleSend();
             }}
           />
-          <Button
-            disabled={!text.trim() || sending}
-            onClick={async () => {
-              if (!text.trim()) return;
-              await onSend(text.trim());
-              setText("");
-            }}
-          >
+          <Button disabled={!text.trim() || isLoading} onClick={handleSend}>
             Send
           </Button>
         </div>
       </CardContent>
     </Card>
   );
-};
-
-export default ChatPanel;
+}

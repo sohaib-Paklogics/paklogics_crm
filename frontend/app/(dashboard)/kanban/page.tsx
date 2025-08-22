@@ -1,58 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DragDropContext,
-  Droppable,
-  Draggable,
   type DropResult,
-  DroppableProps,
+  type DragStart,
 } from "react-beautiful-dnd";
-import { MoreVertical, Plus, User } from "lucide-react";
+import { Eye, Plus } from "lucide-react";
 
 import { MainLayout } from "@/components/layout/main-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 import useAuthStore from "@/stores/auth-store";
 import { useKanbanStore } from "@/stores/kanban.store";
 import { useStagesStore } from "@/stores/stages.store";
 import type { Lead, Stage } from "@/types/lead";
-import { StageActions } from "@/components/StageActions";
-import ButtonLoader from "@/components/common/ButtonLoader";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AddLeadModal } from "@/components/modals/add-lead-modal";
-
-/** React 18 StrictMode helper for react-beautiful-dnd */
-function StrictModeDroppable(props: DroppableProps) {
-  const [enabled, setEnabled] = useState(false);
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => setEnabled(true));
-    return () => {
-      cancelAnimationFrame(raf);
-      setEnabled(false);
-    };
-  }, []);
-  if (!enabled) return null;
-  return <Droppable {...props} />;
-}
+import KanbanColumn from "@/components/leadDetail/KanbanColumn";
+import Loader from "@/components/common/Loader";
+import Link from "next/link";
 
 export default function KanbanPage() {
   const { user, hasPermission } = useAuthStore();
   const { board, isLoading, fetchBoard, moveCard } = useKanbanStore();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // ⬇️ pull adjacent-insert helpers so StageActions doesn’t do ordering logic
   const {
     items: stages,
     fetch: fetchStages,
@@ -73,12 +46,10 @@ export default function KanbanPage() {
   }, [user]);
 
   const refreshBoard = useCallback(async () => {
-    // always fetch stages first (sorted by `order` in store), then board
     await fetchStages();
     await fetchBoard(buildBoardParams());
   }, [fetchStages, fetchBoard, buildBoardParams]);
 
-  // initial loads
   useEffect(() => {
     if (!user) return;
     refreshBoard();
@@ -111,7 +82,6 @@ export default function KanbanPage() {
     return items;
   };
 
-  // Build columns from dynamic stages (store already sorts by `order`)
   const columns = useMemo(() => {
     const colEntries: { stage: Stage; leads: Lead[] }[] = [];
     if (!board || !stages?.length) return colEntries;
@@ -129,6 +99,58 @@ export default function KanbanPage() {
     [columns]
   );
 
+  // ---------- Horizontal edge auto-scroll while dragging ----------
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
+
+  const EDGE_PX = 80; // distance from left/right edge that triggers scroll
+  const SCROLL_PX = 24; // amount to scroll per animation frame
+
+  const onPointerMove = useCallback((e: PointerEvent) => {
+    lastPointer.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const tick = useCallback(() => {
+    if (!isDraggingRef.current || !scrollRef.current || !lastPointer.current) {
+      rafRef.current = requestAnimationFrame(tick);
+      return;
+    }
+    const el = scrollRef.current;
+    const rect = el.getBoundingClientRect();
+    const { x } = lastPointer.current;
+
+    if (x - rect.left < EDGE_PX) {
+      el.scrollBy({ left: -SCROLL_PX, behavior: "auto" });
+    } else if (rect.right - x < EDGE_PX) {
+      el.scrollBy({ left: SCROLL_PX, behavior: "auto" });
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const startAutoScroll = useCallback(() => {
+    isDraggingRef.current = true;
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    rafRef.current = requestAnimationFrame(tick);
+  }, [onPointerMove, tick]);
+
+  const stopAutoScroll = useCallback(() => {
+    isDraggingRef.current = false;
+    window.removeEventListener("pointermove", onPointerMove);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    lastPointer.current = null;
+  }, [onPointerMove]);
+
+  useEffect(() => {
+    return () => {
+      stopAutoScroll();
+    };
+  }, [stopAutoScroll]);
+  // ----------------------------------------------------------------
+
   if (!mounted || !user) {
     return (
       <MainLayout>
@@ -139,7 +161,23 @@ export default function KanbanPage() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <Loader />
+      </MainLayout>
+    );
+  }
+
+  const onDragStart = (_: DragStart) => {
+    // kick off horizontal edge auto-scroll
+    startAutoScroll();
+  };
+
   const onDragEnd = async (result: DropResult) => {
+    // always stop edge auto-scroll
+    stopAutoScroll();
+
     if (!canDragDrop) return;
     const { source, destination, draggableId } = result;
     if (!destination) return;
@@ -173,15 +211,27 @@ export default function KanbanPage() {
               {!canDragDrop && " (Read-only view)"}
             </p>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Lead
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/leads" className="flex items-center">
+              <Button variant={"ghost"}>
+                <Eye className="w-4 h-4 mr-2" />
+                View Lead
+              </Button>
+            </Link>
+            <Button onClick={() => setIsAddModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Lead
+            </Button>
+          </div>
         </div>
 
         {/* Kanban Board */}
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+          <div
+            ref={scrollRef}
+            className="flex gap-6 overflow-x-auto pb-4 overscroll-x-contain"
+            style={{ scrollBehavior: "auto" }} // ensure instant programmatic scroll
+          >
             {(stagesLoading ? [] : columns).map(({ stage, leads }) => (
               <KanbanColumn
                 key={stage._id}
@@ -191,7 +241,6 @@ export default function KanbanPage() {
                 isLoading={isLoading || stagesLoading}
                 allStages={stages}
                 onChangeStatus={changeStatusViaMenu}
-                // ⬇️ pass *functions* to StageActions; StageActions shouldn’t know ordering logic
                 stageActions={{
                   addBefore: async (name: string, color?: string) => {
                     await addBefore(stage._id, name, color);
@@ -201,7 +250,7 @@ export default function KanbanPage() {
                     await addAfter(stage._id, name, color);
                     await refreshBoard();
                   },
-                  refresh: refreshBoard, // optional, if StageActions needs it
+                  refresh: refreshBoard,
                 }}
               />
             ))}
@@ -249,218 +298,5 @@ export default function KanbanPage() {
         />
       </div>
     </MainLayout>
-  );
-}
-
-/* ---------- Sub-components ---------- */
-
-function KanbanColumn({
-  stage,
-  leads,
-  canDragDrop,
-  isLoading,
-  allStages,
-  onChangeStatus,
-  stageActions,
-}: {
-  stage: Stage;
-  leads: Lead[];
-  canDragDrop: boolean;
-  isLoading: boolean;
-  allStages: Stage[];
-  onChangeStatus: (lead: Lead, toStageId: string) => Promise<void>;
-  stageActions: {
-    addBefore: (name: string, color?: string) => Promise<void>;
-    addAfter: (name: string, color?: string) => Promise<void>;
-    refresh?: () => Promise<void>;
-  };
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div
-            className="w-3 h-3 rounded-full"
-            style={{ background: stage.color }}
-          />
-          <h3 className="font-semibold text-validiz-brown">{stage.name}</h3>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="bg-gray-100 text-gray-600">
-            {isLoading ? <ButtonLoader color="border-black" /> : leads.length}
-          </Badge>
-
-          {/* ✅ StageActions now receives *functions*, not inline code */}
-          <StageActions stage={stage} actions={stageActions} />
-        </div>
-      </div>
-
-      <StrictModeDroppable droppableId={String(stage._id)}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`min-h-[500px] p-3 rounded-lg border-2 border-dashed transition-colors ${
-              snapshot.isDraggingOver
-                ? "border-validiz-mustard bg-validiz-mustard/5"
-                : "border-gray-200 bg-gray-50"
-            }`}
-          >
-            {leads.map((lead, index) => (
-              <Link href={`/leads/${lead._id}`} key={String(lead._id)}>
-                <LeadCard
-                  key={String(lead._id)}
-                  lead={lead}
-                  index={index}
-                  canDragDrop={canDragDrop}
-                  allStages={allStages}
-                  onChangeStatus={onChangeStatus}
-                />
-              </Link>
-            ))}
-            {provided.placeholder}
-
-            {!isLoading && leads.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-                <div className="text-center">
-                  <p className="text-sm">No leads</p>
-                  <p className="text-xs mt-1">
-                    {canDragDrop ? "Drag leads here" : "No leads in this stage"}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </StrictModeDroppable>
-    </div>
-  );
-}
-
-function LeadCard({
-  lead,
-  index,
-  canDragDrop,
-  allStages,
-  onChangeStatus,
-}: {
-  lead: Lead;
-  index: number;
-  canDragDrop: boolean;
-  allStages: Stage[];
-  onChangeStatus: (lead: Lead, toStageId: string) => Promise<void>;
-}) {
-  const whileDragging = (isDragging: boolean) =>
-    `mb-3 ${isDragging ? "rotate-2" : ""}`;
-  const hoverScale = (isDragging: boolean) =>
-    `cursor-pointer transition-all hover:shadow-md ${
-      !isDragging && canDragDrop ? "hover:scale-105" : ""
-    }`;
-  const assigned =
-    lead.assignedTo && typeof lead.assignedTo === "object"
-      ? lead.assignedTo
-      : null;
-
-  const stageId = String(
-    typeof lead.stage === "string" ? lead.stage : lead.stage?._id
-  );
-
-  return (
-    <Draggable
-      draggableId={String(lead._id)}
-      index={index}
-      isDragDisabled={!canDragDrop}
-    >
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={whileDragging(snapshot.isDragging)}
-        >
-          <Card className={hoverScale(snapshot.isDragging)}>
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h4 className="font-semibold text-validiz-brown text-sm">
-                      {lead.clientName}
-                    </h4>
-                    <p className="text-xs text-gray-600 line-clamp-2 mt-1">
-                      {lead.jobDescription}
-                    </p>
-                  </div>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="p-1 rounded hover:bg-gray-100"
-                        aria-label="Lead actions"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreVertical className="h-4 w-4 text-gray-500" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
-                      <DropdownMenuLabel>Move to…</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {allStages.map((s) => (
-                        <DropdownMenuItem
-                          key={s._id}
-                          disabled={String(s._id) === stageId}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onChangeStatus(lead, String(s._id));
-                          }}
-                          className="flex items-center justify-between"
-                        >
-                          <span>{s.name}</span>
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ background: s.color }}
-                          />
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs capitalize">
-                    {lead.source === "job_board"
-                      ? "Job Board"
-                      : lead.source.replace("_", " ")}
-                  </Badge>
-                  <div className="flex items-center space-x-1">
-                    {assigned ? (
-                      <div className="flex items-center space-x-1">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs bg-validiz-brown text-white">
-                            {assigned.username?.charAt(0)?.toUpperCase() ?? "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs text-gray-600">
-                          {assigned.username}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-1 text-gray-400">
-                        <User className="h-4 w-4" />
-                        <span className="text-xs">Unassigned</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-500">
-                  Created {new Date(lead.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </Draggable>
   );
 }

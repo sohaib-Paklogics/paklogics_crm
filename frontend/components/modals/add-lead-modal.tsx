@@ -23,6 +23,7 @@ import {
 import { useLeadsStore } from "@/stores/leads.store";
 import { useStagesStore } from "@/stores/stages.store"; // <- dynamic stages
 import { useUserStore } from "@/stores/user-store";
+import ButtonLoader from "../common/ButtonLoader";
 
 type LeadSource = "website" | "referral" | "linkedin" | "job_board" | "other";
 
@@ -300,9 +301,7 @@ export function AddLeadModal({
                 !formData.stageId
               }
             >
-              {(creating || stagesLoading) && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
+              {(creating || stagesLoading) && <ButtonLoader />}
               Add Lead
             </Button>
           </div>

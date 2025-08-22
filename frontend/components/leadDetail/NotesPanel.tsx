@@ -1,30 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
-const NotesPanel = ({
-  leadId,
-  notes,
-  canAdd,
-  onAdd,
-  onDelete,
-}: {
-  leadId: string;
-  notes: Array<{
-    _id: string;
-    text: string;
-    userId?: { _id: string; username: string };
-    createdAt: string;
-  }>;
-  canAdd: boolean;
-  onAdd: (text: string) => Promise<void>;
-  onDelete: (noteId: string) => Promise<void>;
-}) => {
+import { useNotesStore } from "@/stores/notes.store";
+import useAuthStore from "@/stores/auth-store";
+
+export default function NotesPanel({ leadId }: { leadId: string }) {
+  const { items: notes, fetch, create, remove } = useNotesStore();
+  const { hasPermission } = useAuthStore();
   const [value, setValue] = useState("");
+
+  const canAdd = hasPermission({ action: "create", resource: "leads" });
+
+  useEffect(() => {
+    fetch(leadId, 1, 20);
+  }, [leadId, fetch]);
+
+  const addNote = async () => {
+    if (!value.trim()) return;
+    const ok = await create(leadId, value.trim());
+    if (ok) {
+      setValue("");
+      await fetch(leadId, 1, 20);
+    }
+  };
+
+  const deleteNote = async (noteId: string) => {
+    await remove(leadId, noteId);
+    await fetch(leadId, 1, 20);
+  };
 
   return (
     <Card>
@@ -44,7 +52,7 @@ const NotesPanel = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onDelete(n._id)}
+                  onClick={() => deleteNote(n._id)}
                 >
                   Delete
                 </Button>
@@ -63,14 +71,7 @@ const NotesPanel = ({
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
               />
-              <Button
-                size="sm"
-                onClick={async () => {
-                  if (!value.trim()) return;
-                  await onAdd(value.trim());
-                  setValue("");
-                }}
-              >
+              <Button size="sm" onClick={addNote}>
                 Add Note
               </Button>
             </div>
@@ -79,6 +80,4 @@ const NotesPanel = ({
       </CardContent>
     </Card>
   );
-};
-
-export default NotesPanel;
+}

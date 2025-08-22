@@ -1,5 +1,4 @@
-
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const eventSchema = new mongoose.Schema(
   {
@@ -34,6 +33,11 @@ const eventSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    status: {
+      type: String,
+      enum: ["scheduled", "in-progress", "completed", "canceled", "rescheduled"],
+      default: "scheduled",
+    },
   },
   {
     timestamps: true,
@@ -43,13 +47,14 @@ const eventSchema = new mongoose.Schema(
 // Add indexes for efficient querying
 eventSchema.index({ userId: 1, startTime: 1 });
 eventSchema.index({ leadId: 1 });
+eventSchema.index({ status: 1 });
 
 // Validate that endTime is after startTime
-eventSchema.pre('save', function(next) {
+eventSchema.pre("save", function (next) {
   if (this.endTime <= this.startTime) {
-    next(new Error('End time must be after start time'));
+    return next(new Error("End time must be after start time"));
   }
   next();
 });
 
-export default mongoose.model('Event', eventSchema);
+export default mongoose.model("Event", eventSchema);

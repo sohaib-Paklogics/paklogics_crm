@@ -35,6 +35,8 @@ import useAuthStore from "@/stores/auth-store";
 import { useLeadsStore } from "@/stores/leads.store";
 import { useEventsStore } from "@/stores/events.store";
 import type { Lead, LeadEvent } from "@/types/lead";
+import Loader from "@/components/common/Loader";
+import Link from "next/link";
 
 // ----- helpers -----
 const monthNames = [
@@ -111,9 +113,7 @@ export default function CalendarPage() {
   if (!user) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-validiz-brown" />
-        </div>
+        <Loader />
       </MainLayout>
     );
   }
@@ -481,8 +481,17 @@ export default function CalendarPage() {
                 </div>
               )}
               <div className="flex justify-end">
+                <Link href={`/leads/${selectedEvent.leadId}`}>
+                  <Button
+                    variant="outline"
+                    className="mr-2"
+                    onClick={() => setSelectedEvent(null)}
+                  >
+                    View Lead
+                  </Button>
+                </Link>
                 <Button
-                  variant="outline"
+                  variant="destructive"
                   onClick={async () => {
                     await remove(selectedEvent._id);
                     setSelectedEvent(null);

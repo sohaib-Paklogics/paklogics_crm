@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Upload, Download, FileText } from "lucide-react";
@@ -8,28 +8,15 @@ import { Upload, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAttachmentsStore } from "@/stores/attachments.store";
 
-const AttachmentsPanel = ({
-  leadId,
-  items,
-  onUpload,
-  onRemove,
-  onRefresh,
-}: {
-  leadId: string;
-  items: Array<{
-    _id: string;
-    fileName: string;
-    fileUrl: string;
-    fileSize: number;
-    uploadedBy?: { _id: string; username: string } | null;
-    createdAt: string;
-  }>;
-  onUpload: (file: File) => Promise<void>;
-  onRemove: (id: string) => Promise<void>;
-  onRefresh: () => Promise<void>;
-}) => {
+export default function AttachmentsPanel({ leadId }: { leadId: string }) {
+  const { items, fetch, upload, remove } = useAttachmentsStore();
   const [file, setFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    fetch(leadId, 1, 20);
+  }, [leadId, fetch]);
 
   const formatFileSize = (bytes: number) => {
     if (!bytes) return "0 B";
@@ -53,8 +40,9 @@ const AttachmentsPanel = ({
             size="sm"
             onClick={async () => {
               if (!file) return;
-              await onUpload(file);
+              await upload(leadId, file);
               setFile(null);
+              await fetch(leadId, 1, 20);
               toast.success("File uploaded");
             }}
           >
@@ -92,7 +80,8 @@ const AttachmentsPanel = ({
                   variant="outline"
                   size="sm"
                   onClick={async () => {
-                    await onRemove(a._id);
+                    await remove(a._id);
+                    await fetch(leadId, 1, 20);
                     toast.success("Attachment deleted");
                   }}
                 >
@@ -113,6 +102,4 @@ const AttachmentsPanel = ({
       </CardContent>
     </Card>
   );
-};
-
-export default AttachmentsPanel;
+}

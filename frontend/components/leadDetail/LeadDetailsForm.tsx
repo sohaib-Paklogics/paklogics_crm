@@ -12,6 +12,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Lead, LeadSource } from "@/types/lead";
+import { useStagesStore } from "@/stores/stages.store";
+import { useEffect } from "react";
+import { useUserStore } from "@/stores/user-store";
+import { AdminUser } from "@/types/types";
 
 const LeadDetailsForm = ({
   isEditing,
@@ -25,6 +29,13 @@ const LeadDetailsForm = ({
   onChange: (data: Partial<Lead>) => void;
 }) => {
   const set = (k: keyof Lead, v: any) => onChange({ ...editData, [k]: v });
+  const { items: stageList, fetch: stageFetch } = useStagesStore();
+  const { users: userList, fetchUsers } = useUserStore();
+
+  useEffect(() => {
+    stageFetch();
+    fetchUsers();
+  }, [stageFetch, fetchUsers]);
 
   return (
     <Card>
@@ -50,7 +61,7 @@ const LeadDetailsForm = ({
               disabled={!isEditing}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select Source" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="website">Website</SelectItem>
@@ -77,34 +88,32 @@ const LeadDetailsForm = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* ✅ Status dropdown from store */}
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
             <Select
               value={isEditing ? editData.status ?? lead.status : lead.status}
-              onValueChange={(v) => set("status", v as string)}
+              onValueChange={(v) => set("status", v)}
               disabled={!isEditing}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="interview_scheduled">
-                  Interview Scheduled
-                </SelectItem>
-                <SelectItem value="test_assigned">Test Assigned</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                {stageList.map((stage) => (
+                  <SelectItem key={stage._id} value={stage.key}>
+                    {stage.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
+          {/* ✅ Assigned To dropdown from store */}
           <div className="space-y-2">
-            <Label htmlFor="assignedTo">Assigned To (User ID)</Label>
-            <Input
-              id="assignedTo"
-              placeholder="Optional: AdminUser ObjectId"
+            <Label htmlFor="assignedTo">Assigned To</Label>
+            <Select
               value={
-                // allow free typing when editing
                 isEditing
                   ? (typeof (editData as any).assignedTo === "string"
                       ? (editData as any).assignedTo
@@ -113,18 +122,22 @@ const LeadDetailsForm = ({
                     ""
                   : lead.assignedTo?._id ?? ""
               }
-              onChange={(e) => {
-                // keep a simple shape that onSave can detect
-                onChange({
-                  ...editData,
-                  assignedTo: e.target.value ? (e.target.value as any) : null,
-                } as any);
-              }}
+              onValueChange={(v) =>
+                onChange({ ...editData, assignedTo: v } as any)
+              }
               disabled={!isEditing}
-            />
-            <p className="text-xs text-muted-foreground">
-              Replace with a searchable user picker later.
-            </p>
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select User" />
+              </SelectTrigger>
+              <SelectContent>
+                {userList.map((user: any) => (
+                  <SelectItem key={user._id} value={user._id}>
+                    {user.username} ({user.role})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

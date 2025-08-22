@@ -75,11 +75,11 @@ export function StageActions({
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem onClick={() => openDialog("before")}>
             <Plus className="h-4 w-4 mr-2" />
-            Add stage (before)
+            stage (before)
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => openDialog("after")}>
             <Plus className="h-4 w-4 mr-2" />
-            Add stage (after)
+            stage (after)
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {/* future: rename, recolor, delete, move … */}
