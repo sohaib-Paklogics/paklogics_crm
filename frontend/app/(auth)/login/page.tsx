@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginFormData } from "@/types/types";
-import { mockUsers } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react"; // 👈 Import icons
 import { authService } from "@/services/auth.service";
 import { toast } from "sonner";
 import useAuthStore from "@/stores/auth-store";
@@ -25,6 +24,7 @@ import useAuthStore from "@/stores/auth-store";
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // 👈 state for toggle
   const router = useRouter();
 
   const setToken = useAuthStore((s) => s.setToken);
@@ -49,8 +49,8 @@ export default function LoginPage() {
       });
 
       if (result.success && result.data?.token) {
-        setToken(result.data.token); // ✅ update Zustand store
-        setUser(result.data.user); // ✅ set user (optional, depends on backend)
+        setToken(result.data.token);
+        setUser(result.data.user);
 
         toast.success("Logged in successfully");
         router.push("/dashboard");
@@ -91,13 +91,26 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-                {...register("password")}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"} // 👈 toggle type
+                  placeholder="Enter your password"
+                  className="focus:ring-validiz-mustard focus:border-validiz-mustard pr-10"
+                  {...register("password")}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
               {errors.password && (
                 <p className="text-sm text-red-600">
                   {errors.password.message}
@@ -139,13 +152,13 @@ export default function LoginPage() {
             <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
             <div className="text-xs space-y-1">
               <p>
-                <strong>Admin:</strong> admin@validiz.com / password123
+                <strong>Admin:</strong> admin@validiz.com / Admin@123
               </p>
               <p>
-                <strong>BD:</strong> john@validiz.com / password123
+                <strong>BD:</strong> john@validiz.com / Salman@123
               </p>
               <p>
-                <strong>Developer:</strong> jane@validiz.com / password123
+                <strong>Developer:</strong> fenix@validiz.com / Fenix@123
               </p>
             </div>
           </div>

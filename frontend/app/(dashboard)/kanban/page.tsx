@@ -218,10 +218,12 @@ export default function KanbanPage() {
                 View Lead
               </Button>
             </Link>
-            <Button onClick={() => setIsAddModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Lead
-            </Button>
+            {user.role !== "developer" && (
+              <Button onClick={() => setIsAddModalOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Lead
+              </Button>
+            )}
           </div>
         </div>
 
