@@ -100,17 +100,35 @@ export interface CalendarEvent {
   type: "interview" | "test" | "availability";
 }
 
+export const baseUserSchema = z.object({
+  username: z.string().min(2, "Username must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  role: z.enum(["superadmin", "admin", "business_developer", "developer"]),
+});
+
+export const createUserSchema = baseUserSchema.extend({
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export const editUserSchema = baseUserSchema.extend({
+  password: z.string().optional(),
+});
+
+export type CreateUserFormData = z.infer<typeof createUserSchema>; // {username,email,role,password}
+export type EditUserFormData = z.infer<typeof editUserSchema>; // {username,email,role,password?}
+export type UserFormData = CreateUserFormData | EditUserFormData;
+
 export interface AdminUser {
-  id: string;
+  id: string; // we’ll normalize _id to id
   _id?: string;
   username: string;
   email: string;
-  password?: string; // optional because we won't send it to client
-  role: "superadmin" | "admin" | "business_developer" | "developer";
+  password?: string;
+  role: UserRole;
   status: "active" | "inactive" | "suspended";
   permissions: string[];
-  lastLogin?: string; // ISO date string
-  loginHistory: string[]; // array of ISO date strings
+  lastLogin?: string;
+  loginHistory: string[];
   resetPasswordToken?: string;
   resetPasswordExpires?: string;
   meta?: Record<string, any>;
@@ -146,13 +164,6 @@ export const leadSchema = z.object({
   assignedDeveloperId: z.string().optional(),
 });
 
-export const userSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  role: z.enum(["superadmin", "admin", "business_developer", "developer"]),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
 export const noteSchema = z.object({
   content: z.string().min(1, "Note content is required"),
 });
@@ -170,6 +181,5 @@ export const eventSchema = z.object({
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type ProfileFormData = z.infer<typeof profileSchema>;
 export type LeadFormData = z.infer<typeof leadSchema>;
-export type UserFormData = z.infer<typeof userSchema>;
 export type NoteFormData = z.infer<typeof noteSchema>;
 export type EventFormData = z.infer<typeof eventSchema>;

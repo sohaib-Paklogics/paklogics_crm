@@ -8,6 +8,7 @@ import eventRoutes from "./event.js";
 import messageRoutes from "./message.js";
 import stageRoutes from "./stage.js";
 import testTaskRoutes from "./testTask.js";
+import rolePermissionsRoutes from "./rolePermissions.js";
 
 import calendarRoutes from "./calendar.js";
 import notesRoutes from "./note.js";
@@ -23,6 +24,7 @@ router.use("/leads", leadsRoutes);
 router.use("/kanban", kanbanRoutes);
 router.use("/stages", stageRoutes);
 
+router.use("/", rolePermissionsRoutes);
 router.use("/", attachmentRoutes);
 router.use("/", noteRoutes);
 router.use("/", eventRoutes);

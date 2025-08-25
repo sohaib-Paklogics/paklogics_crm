@@ -50,22 +50,26 @@ export async function createAdminUser(data) {
 
 export async function getAdminUsers({ page = 1, limit = 10, search = "", status }) {
   const query = {};
+
   if (search) {
     query.$or = [{ username: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
   }
+
   if (status) query.status = status;
 
   const total = await AdminUser.countDocuments(query);
+
   const results = await AdminUser.find(query)
+    .select("-password -__v") // 👈 exclude password & internal version key
     .skip((page - 1) * limit)
-    .limit(parseInt(limit))
+    .limit(Number(limit))
     .sort({ createdAt: -1 });
 
   return paginate(results, page, limit, total);
 }
 
 export async function getAdminUserById(id) {
-  return await AdminUser.findById(id);
+  return await AdminUser.findById(id).select("-password");
 }
 
 export async function updateAdminUser(id, data) {

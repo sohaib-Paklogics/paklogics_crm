@@ -22,7 +22,7 @@ export const userService = {
 
   // 🔹 Create admin user
   createUser: async (data: Partial<AdminUser>): Promise<ApiResponse> => {
-    const response = await api.post<ApiResponse>("/admin-auth", data);
+    const response = await api.post<ApiResponse>("/admin-auth/add-user", data);
     return response.data;
   },
 

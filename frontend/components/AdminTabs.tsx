@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserManagementTab } from "./UserManagementTab";
-import { RolePermissionsTab } from "./RolePermissionsTab";
+import RolePermissionsTab from "./RolePermissionsTab";
 
 export function AdminTabs() {
   return (

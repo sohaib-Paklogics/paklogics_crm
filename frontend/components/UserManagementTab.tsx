@@ -1,6 +1,7 @@
+// UserManagementTab.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,10 +28,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { userSchema, type UserFormData, type UserRole } from "@/types/types";
+import {
+  createUserSchema,
+  editUserSchema,
+  type UserFormData,
+  type UserRole,
+  type AdminUser,
+} from "@/types/types";
 
 import { Plus, MoreHorizontal, Edit, Trash2, Loader2 } from "lucide-react";
 import {
@@ -40,7 +47,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import type { AdminUser } from "@/types/types";
 import { useUserStore } from "@/stores/user-store";
 
 export function UserManagementTab() {
@@ -52,28 +58,32 @@ export function UserManagementTab() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // initial load
     fetchUsers().catch(console.error);
   }, [fetchUsers]);
+
+  // Switch resolver depending on create vs edit
+  const resolver = useMemo(
+    () => zodResolver(editingUser ? editUserSchema : createUserSchema),
+    [editingUser]
+  );
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    setValue,
+    control,
     reset,
-    watch,
   } = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
+    resolver,
     defaultValues: {
       username: "",
       email: "",
       role: undefined as unknown as UserRole,
       password: "",
     },
+    mode: "onSubmit",
+    reValidateMode: "onChange",
   });
-
-  const roleValue = watch("role");
 
   const roles: { key: UserRole; label: string }[] = [
     { key: "superadmin", label: "Super Admin" },
@@ -97,42 +107,55 @@ export function UserManagementTab() {
     }
   };
 
+  const openCreate = () => {
+    setEditingUser(null);
+    reset({
+      username: "",
+      email: "",
+      role: undefined as unknown as UserRole,
+      password: "",
+    });
+    setIsAddUserOpen(true);
+  };
+
+  const openEdit = (u: AdminUser & { id: string }) => {
+    setEditingUser(u.id);
+    reset({
+      username: u.username,
+      email: u.email,
+      role: u.role as UserRole,
+      password: "",
+    });
+    setIsAddUserOpen(true);
+  };
+
   const onSubmit = async (data: UserFormData) => {
     setSaving(true);
     try {
       if (editingUser) {
-        const updated = await updateUser(editingUser, {
+        await updateUser(editingUser, {
           username: data.username,
           email: data.email,
           role: data.role,
         });
-        if (updated) {
-          setEditingUser(null);
-        }
+        setEditingUser(null);
       } else {
         await addUser({
           username: data.username,
           email: data.email,
           role: data.role,
-          // password should be accepted by your API on create
-          password: data.password,
-        } as Partial<AdminUser>);
+          password: (data as any).password,
+        });
       }
-      reset();
+      reset({
+        username: "",
+        email: "",
+        role: undefined as unknown as UserRole,
+        password: "",
+      });
       setIsAddUserOpen(false);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleEdit = (userId: string) => {
-    const user = users.find((u) => u.id === userId);
-    if (user) {
-      setValue("username", user.username);
-      setValue("email", user.email);
-      setValue("role", user.role as UserRole);
-      setEditingUser(userId);
-      setIsAddUserOpen(true);
     }
   };
 
@@ -153,11 +176,7 @@ export function UserManagementTab() {
             </p>
           </div>
           <Button
-            onClick={() => {
-              reset();
-              setEditingUser(null);
-              setIsAddUserOpen(true);
-            }}
+            onClick={openCreate}
             className="bg-validiz-brown hover:bg-validiz-brown/90"
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -220,9 +239,7 @@ export function UserManagementTab() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleEdit(user.id)}
-                            >
+                            <DropdownMenuItem onClick={() => openEdit(user)}>
                               <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
@@ -243,8 +260,21 @@ export function UserManagementTab() {
         </CardContent>
       </Card>
 
-      {/* Modal */}
-      <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+      <Dialog
+        open={isAddUserOpen}
+        onOpenChange={(open) => {
+          setIsAddUserOpen(open);
+          if (!open) {
+            setEditingUser(null);
+            reset({
+              username: "",
+              email: "",
+              role: undefined as unknown as UserRole,
+              password: "",
+            });
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="text-validiz-brown">
@@ -255,7 +285,11 @@ export function UserManagementTab() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-4"
+            key={editingUser ? `edit-${editingUser}` : "create"}
+          >
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input id="username" {...register("username")} />
@@ -276,23 +310,27 @@ export function UserManagementTab() {
 
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
-              <Select
-                value={roleValue || ""}
-                onValueChange={(val) =>
-                  setValue("role", val as UserRole, { shouldValidate: true })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((r) => (
-                    <SelectItem key={r.key} value={r.key}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="role"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((r) => (
+                        <SelectItem key={r.key} value={r.key}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.role && (
                 <p className="text-sm text-red-600">{errors.role.message}</p>
               )}
@@ -306,9 +344,9 @@ export function UserManagementTab() {
                   type="password"
                   {...register("password")}
                 />
-                {errors.password && (
+                {"password" in errors && (
                   <p className="text-sm text-red-600">
-                    {errors.password.message}
+                    {(errors as any).password?.message}
                   </p>
                 )}
               </div>
@@ -321,7 +359,12 @@ export function UserManagementTab() {
                 onClick={() => {
                   setIsAddUserOpen(false);
                   setEditingUser(null);
-                  reset();
+                  reset({
+                    username: "",
+                    email: "",
+                    role: undefined as unknown as UserRole,
+                    password: "",
+                  });
                 }}
               >
                 Cancel
