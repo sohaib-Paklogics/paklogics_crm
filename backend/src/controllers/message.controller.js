@@ -2,6 +2,7 @@ import * as service from "../services/message.service.js";
 import * as validator from "../validations/message.validation.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
+import ApiError from "../utils/ApiError.js";
 
 export const create = asyncHandler(async (req, res) => {
   const { content } = await validator.createSchema.validateAsync(req.body);
@@ -33,4 +34,30 @@ export const markAllRead = asyncHandler(async (req, res) => {
 export const remove = asyncHandler(async (req, res) => {
   const result = await service.remove(req.params.messageId, req.user);
   res.json(ApiResponse.success(result, "Message deleted"));
+});
+
+export const editMessage = asyncHandler(async (req, res) => {
+  console.log("Editing message...");
+  const { error, value } = validator.editSchema.validate(req.body);
+  if (error) {
+    throw new ApiError(400, error.details[0].message);
+  }
+
+  const leadId = req.params.id;
+  const messageId = req.params.messageId;
+  const userId = req.user?.id;
+
+  const updated = await service.editMessageService({
+    leadId,
+    messageId,
+    userId,
+    content: value.content,
+  });
+
+  // Emit Socket.IO event (kept at controller boundary)
+  if (req.io) {
+    req.io.to(`lead:${leadId}`).emit("messageUpdated", updated);
+  }
+
+  return res.json(new ApiResponse(200, updated, "Message updated successfully"));
 });

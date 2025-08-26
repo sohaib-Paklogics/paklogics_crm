@@ -12,7 +12,6 @@ import rolePermissionsRoutes from "./rolePermissions.js";
 
 import calendarRoutes from "./calendar.js";
 import notesRoutes from "./note.js";
-import chatRoutes from "./chat.js";
 import reportsRoutes from "./reports.js";
 import notificationsRoutes from "./notifications.js";
 
@@ -33,7 +32,6 @@ router.use("/", testTaskRoutes);
 
 router.use("/calendar", calendarRoutes);
 router.use("/notes", notesRoutes);
-router.use("/chat", chatRoutes);
 router.use("/reports", reportsRoutes);
 router.use("/notifications", notificationsRoutes);
 

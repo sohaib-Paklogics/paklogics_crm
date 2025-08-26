@@ -58,7 +58,7 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
   }, [leadId, fetch, fetchUsers]);
 
   const items = list(leadId);
-  const canSubmit = title.trim().length >= 2;
+  const canSubmit = title.trim().length >= 2 && assignee !== UNASSIGNED;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,11 +132,13 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
                   <SelectValue placeholder="Unassigned" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                  <SelectItem className="capitalize" value={UNASSIGNED}>
+                    Unassigned
+                  </SelectItem>
                   {(users || []).map((u) => {
                     const val = (u as any)._id ?? (u as any).id;
                     return (
-                      <SelectItem key={val} value={val}>
+                      <SelectItem className="capitalize" key={val} value={val}>
                         {u.username}
                       </SelectItem>
                     );
@@ -218,4 +220,3 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
     </div>
   );
 }
-

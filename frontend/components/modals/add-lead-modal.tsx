@@ -127,9 +127,7 @@ export function AddLeadModal({
       clientName: formData.clientName,
       jobDescription: formData.jobDescription,
       source: formData.source,
-      // dynamic pipeline bits
       stage: formData.stageId,
-      status: derivedStatus, // mirrors stage.key for backwards compatibility
     };
 
     if (formData.assignedTo) payload.assignedTo = formData.assignedTo;

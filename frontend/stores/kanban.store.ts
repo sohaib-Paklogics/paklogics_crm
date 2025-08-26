@@ -52,7 +52,6 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     if (idx > -1) {
       const [moved] = fromCol.data.splice(idx, 1);
       moved.stage = toCol.stage._id;
-      moved.status = toCol.stage.key;
       toCol.data.unshift(moved);
       fromCol.count = fromCol.data.length;
       toCol.count = toCol.data.length;

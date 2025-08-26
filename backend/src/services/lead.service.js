@@ -1,36 +1,23 @@
 import Lead from "../models/lead.model.js";
 import ApiError from "../utils/ApiError.js";
 import { getPagination, paginate, buildFilter } from "../utils/pagination.js";
-import mongoose from "mongoose";
-
-const SEARCHABLE = ["clientName", "jobDescription"]; // used in buildFilter
-
-// Build domain-specific filter using your helper and extra fields
-function buildLeadFilter(q) {
-  const filter = buildFilter(q, SEARCHABLE);
-
-  if (q.source) filter.source = q.source;
-  if (q.assignedTo) filter.assignedTo = new mongoose.Types.ObjectId(q.assignedTo);
-  if (q.createdBy) filter.createdBy = new mongoose.Types.ObjectId(q.createdBy);
-
-  if (q.dateFrom || q.dateTo) {
-    filter.createdAt = {};
-    if (q.dateFrom) filter.createdAt.$gte = new Date(q.dateFrom);
-    if (q.dateTo) filter.createdAt.$lte = new Date(q.dateTo);
-  }
-
-  return filter;
-}
 
 export async function createLead(data) {
+  // Defensive default (works even if model default exists, but helps older docs/tests)
+  if (!data.status) {
+    data.status = { value: "active" };
+    data.status.changedBy = data.createdBy;
+    data.status.changedAt = new Date();
+  }
   const doc = await Lead.create(data);
   return doc;
 }
 
 export async function getLeads(query) {
   const { skip, limit, page } = getPagination(query.page, query.limit);
-  const filter = buildLeadFilter(query);
-
+  console.log("query", query);
+  const filter = buildFilter(query);
+  console.log("filter", filter);
   const sort = { [query.sort || "createdAt"]: query.order === "asc" ? 1 : -1 };
 
   const [total, rows] = await Promise.all([
@@ -38,6 +25,7 @@ export async function getLeads(query) {
     Lead.find(filter)
       .populate("assignedTo", "username email role status")
       .populate("createdBy", "username email")
+      .populate("stage", "name color")
       .sort(sort)
       .skip(skip)
       .limit(limit)
@@ -51,12 +39,18 @@ export async function getLeadById(id) {
   const lead = await Lead.findById(id)
     .populate("assignedTo", "username email role status")
     .populate("createdBy", "username email")
+    .populate("stage", "name color")
     .lean();
   if (!lead || lead.deletedAt) throw new ApiError(404, "Lead not found");
   return lead;
 }
 
 export async function updateLead(id, data) {
+  // Do NOT allow direct lifecycle writes here if your validator forbids it
+  if ("status" in data) {
+    delete data.status;
+  }
+
   const updated = await Lead.findOneAndUpdate({ _id: id, deletedAt: { $exists: false } }, data, { new: true });
   if (!updated) throw new ApiError(404, "Lead not found");
   return updated;
@@ -88,7 +82,7 @@ const ALLOWED_TRANSITIONS = {
   completed: [], // terminal
 };
 
-export async function changeStatus(id, status) {
+export async function changeStage(id, status) {
   if (!ALLOWED_STATUS.includes(status)) {
     throw new ApiError(400, "Invalid status value");
   }
@@ -105,6 +99,28 @@ export async function changeStatus(id, status) {
 
   lead.status = status;
   await lead.save();
+  return lead;
+}
+
+// services/lead.service.js
+export async function updateLeadStatus(id, newStatus, userId) {
+  if (!["new", "active", "delayed", "completed", "deleted"].includes(newStatus)) {
+    throw new ApiError(400, "Invalid status");
+  }
+
+  const lead = await Lead.findByIdAndUpdate(
+    id,
+    {
+      status: {
+        value: newStatus,
+        changedBy: userId,
+        changedAt: new Date(),
+      },
+    },
+    { new: true },
+  ).populate("assignedTo createdBy status.changedBy", "username email");
+
+  if (!lead) throw new ApiError(404, "Lead not found");
   return lead;
 }
 

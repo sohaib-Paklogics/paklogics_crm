@@ -88,28 +88,38 @@ const LeadDetailsForm = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* ✅ Status dropdown from store */}
           <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="stage">Stage</Label>
+
             <Select
-              value={isEditing ? editData.status ?? lead.status : lead.status}
-              onValueChange={(v) => set("status", v)}
+              value={
+                isEditing
+                  ? (typeof editData.stage === "object"
+                      ? editData.stage?._id
+                      : editData.stage) ??
+                    (typeof lead?.stage === "object"
+                      ? lead?.stage?._id
+                      : (lead?.stage as any))
+                  : typeof lead?.stage === "object"
+                  ? lead?.stage?._id
+                  : (lead?.stage as any)
+              }
+              onValueChange={(v) => set("stage", v)} // << set the STAGE field, not status
               disabled={!isEditing}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Status" />
+              <SelectTrigger id="stage">
+                <SelectValue placeholder="Select Stage" />
               </SelectTrigger>
               <SelectContent>
-                {stageList.map((stage) => (
-                  <SelectItem key={stage._id} value={stage.key}>
-                    {stage.name}
+                {stageList.map((s) => (
+                  <SelectItem key={s._id} value={s._id}>
+                    {s.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* ✅ Assigned To dropdown from store */}
           <div className="space-y-2">
             <Label htmlFor="assignedTo">Assigned To</Label>
             <Select
@@ -128,14 +138,20 @@ const LeadDetailsForm = ({
               disabled={!isEditing}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select User" />
+                <SelectValue placeholder="Select Developer" />
               </SelectTrigger>
               <SelectContent>
-                {userList.map((user: any) => (
-                  <SelectItem key={user._id} value={user._id}>
-                    {user.username} ({user.role})
-                  </SelectItem>
-                ))}
+                {userList
+                  .filter((user: AdminUser) => user.role === "developer") // 👈 only developers
+                  .map((user: AdminUser) => (
+                    <SelectItem
+                      className="capitalize"
+                      key={user._id}
+                      value={user._id}
+                    >
+                      {user.username} ({user.role})
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

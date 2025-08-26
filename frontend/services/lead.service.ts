@@ -55,9 +55,19 @@ export const leadService = {
     return data;
   },
 
+  changeStage: async (
+    id: string,
+    stage: string
+  ): Promise<ApiResponse<Lead>> => {
+    const { data } = await api.patch<ApiResponse<Lead>>(`/leads/${id}/stage`, {
+      stage,
+    });
+    return data;
+  },
+
   changeStatus: async (
     id: string,
-    status: Lead["status"]
+    status: Lead["status"]["value"]
   ): Promise<ApiResponse<Lead>> => {
     const { data } = await api.patch<ApiResponse<Lead>>(`/leads/${id}/status`, {
       status,

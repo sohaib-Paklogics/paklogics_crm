@@ -1,9 +1,12 @@
 // src/types/lead.ts
-export type LeadStatus =
+export type LeadStage =
   | "new"
   | "interview_scheduled"
   | "test_assigned"
   | "completed";
+
+export type LeadLifecycleStatus = "active" | "delayed" | "deleted";
+
 export type LeadSource =
   | "all"
   | "website"
@@ -12,7 +15,7 @@ export type LeadSource =
   | "job_board"
   | "other";
 
-export type Stage = {
+export interface Stage {
   _id: string;
   name: string;
   key: string;
@@ -22,7 +25,7 @@ export type Stage = {
   active: boolean;
   createdAt: string;
   updatedAt: string;
-};
+}
 
 export interface Lead {
   _id: string;
@@ -36,8 +39,15 @@ export interface Lead {
     role: string;
     status: string;
   } | null;
-  status: string;
-  stage?: Stage | string;
+
+  // 👇 separated
+  stage?: Stage | string; // pipeline stage
+  status: {
+    value: LeadLifecycleStatus;
+    changedBy?: { _id: string; username: string } | string;
+    changedAt?: string;
+  };
+
   notes?: string | null;
   createdBy: { _id: string; username: string; email: string };
   createdAt: string;
@@ -70,7 +80,9 @@ export type LeadFilters = {
   page?: number;
   limit?: number;
   search?: string;
-  status?: "all" | LeadStatus;
+  status?: "all" | LeadStage;
+  stage?: string;
+
   source?: LeadSource;
   assignedTo?: string;
   createdBy?: string;

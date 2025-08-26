@@ -11,7 +11,13 @@ interface EventsState {
 
   fetch: (
     leadId: string,
-    params?: { page?: number; limit?: number; from?: string; to?: string }
+    params?: {
+      page?: number;
+      limit?: number;
+      from?: string;
+      to?: string;
+      search?: string;
+    }
   ) => Promise<void>;
   create: (
     leadId: string,

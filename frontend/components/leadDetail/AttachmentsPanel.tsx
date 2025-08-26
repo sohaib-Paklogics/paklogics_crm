@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAttachmentsStore } from "@/stores/attachments.store";
+import ButtonLoader from "../common/ButtonLoader";
 
 export default function AttachmentsPanel({ leadId }: { leadId: string }) {
-  const { items, fetch, upload, remove } = useAttachmentsStore();
+  const { items, fetch, upload, remove, isUploading } = useAttachmentsStore();
   const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
@@ -43,10 +44,14 @@ export default function AttachmentsPanel({ leadId }: { leadId: string }) {
               await upload(leadId, file);
               setFile(null);
               await fetch(leadId, 1, 20);
-              toast.success("File uploaded");
             }}
+            disabled={!file || isUploading}
           >
-            <Upload className="mr-2 h-4 w-4" />
+            {isUploading ? (
+              <ButtonLoader />
+            ) : (
+              <Upload className="mr-2 h-4 w-4" />
+            )}
             Upload
           </Button>
         </div>

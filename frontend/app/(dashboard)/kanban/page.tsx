@@ -16,6 +16,7 @@ import { useKanbanStore } from "@/stores/kanban.store";
 import { useStagesStore } from "@/stores/stages.store";
 import type { Lead, Stage } from "@/types/lead";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { AddLeadModal } from "@/components/modals/add-lead-modal";
 import KanbanColumn from "@/components/leadDetail/KanbanColumn";
 import Loader from "@/components/common/Loader";
@@ -82,6 +83,10 @@ export default function KanbanPage() {
     return items;
   };
 
+  // ---------- Local (Kanban-only) search ----------
+  const [q, setQ] = useState("");
+  const needle = useMemo(() => q.trim().toLowerCase(), [q]);
+
   const columns = useMemo(() => {
     const colEntries: { stage: Stage; leads: Lead[] }[] = [];
     if (!board || !stages?.length) return colEntries;
@@ -89,15 +94,30 @@ export default function KanbanPage() {
     for (const s of stages) {
       const col = board.columns[String(s._id)];
       const leads = applyRoleFilter(col?.data ?? []);
-      colEntries.push({ stage: s, leads });
+
+      const filtered = !needle
+        ? leads
+        : leads.filter((l) => {
+            const title = String(l.clientName ?? "").toLowerCase();
+            const company = String((l as any)?.company ?? "").toLowerCase();
+            return title.includes(needle) || company.includes(needle);
+          });
+
+      colEntries.push({ stage: s, leads: filtered });
     }
     return colEntries;
-  }, [board, stages, user]);
+  }, [board, stages, user, needle]);
 
   const total = useMemo(
     () => columns.reduce((sum, c) => sum + c.leads.length, 0),
     [columns]
   );
+
+  const anyResults = useMemo(
+    () => columns.some((c) => c.leads.length > 0),
+    [columns]
+  );
+  // -------------------------------------------------
 
   // ---------- Horizontal edge auto-scroll while dragging ----------
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -211,7 +231,16 @@ export default function KanbanPage() {
               {!canDragDrop && " (Read-only view)"}
             </p>
           </div>
+
+          {/* Right side actions */}
           <div className="flex items-center gap-2">
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search in board…"
+              className="h-9 w-[220px] sm:w-[260px]"
+            />
+
             <Link href="/leads" className="flex items-center">
               <Button variant={"ghost"}>
                 <Eye className="w-4 h-4 mr-2" />
@@ -228,36 +257,44 @@ export default function KanbanPage() {
         </div>
 
         {/* Kanban Board */}
-        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div
-            ref={scrollRef}
-            className="flex gap-6 overflow-x-auto pb-4 overscroll-x-contain"
-            style={{ scrollBehavior: "auto" }} // ensure instant programmatic scroll
-          >
-            {(stagesLoading ? [] : columns).map(({ stage, leads }) => (
-              <KanbanColumn
-                key={stage._id}
-                stage={stage}
-                leads={leads}
-                canDragDrop={!!canDragDrop}
-                isLoading={isLoading || stagesLoading}
-                allStages={stages}
-                onChangeStatus={changeStatusViaMenu}
-                stageActions={{
-                  addBefore: async (name: string, color?: string) => {
-                    await addBefore(stage._id, name, color);
-                    await refreshBoard();
-                  },
-                  addAfter: async (name: string, color?: string) => {
-                    await addAfter(stage._id, name, color);
-                    await refreshBoard();
-                  },
-                  refresh: refreshBoard,
-                }}
-              />
-            ))}
-          </div>
-        </DragDropContext>
+        {!anyResults && q ? (
+          <Card>
+            <CardContent className="py-10 text-center text-muted-foreground">
+              No leads match “{q}”.
+            </CardContent>
+          </Card>
+        ) : (
+          <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+            <div
+              ref={scrollRef}
+              className="flex gap-6 overflow-x-auto pb-4 overscroll-x-contain"
+              style={{ scrollBehavior: "auto" }} // ensure instant programmatic scroll
+            >
+              {(stagesLoading ? [] : columns).map(({ stage, leads }) => (
+                <KanbanColumn
+                  key={stage._id}
+                  stage={stage}
+                  leads={leads}
+                  canDragDrop={!!canDragDrop}
+                  isLoading={isLoading || stagesLoading}
+                  allStages={stages}
+                  onChangeStatus={changeStatusViaMenu}
+                  stageActions={{
+                    addBefore: async (name: string, color?: string) => {
+                      await addBefore(stage._id, name, color);
+                      await refreshBoard();
+                    },
+                    addAfter: async (name: string, color?: string) => {
+                      await addAfter(stage._id, name, color);
+                      await refreshBoard();
+                    },
+                    refresh: refreshBoard,
+                  }}
+                />
+              ))}
+            </div>
+          </DragDropContext>
+        )}
 
         {/* Stats Summary */}
         <Card>

@@ -3,80 +3,57 @@ import Joi from "joi";
 
 export const id = Joi.string().hex().length(24);
 
-/** -------- Create --------
- * - stage is REQUIRED
- * - status is derived on the server from the stage.key
- */
+/** -------- Create -------- */
 export const createSchema = Joi.object({
   clientName: Joi.string().min(2).max(120).required(),
   jobDescription: Joi.string().min(3).required(),
   source: Joi.string().valid("website", "referral", "linkedin", "job_board", "other").required(),
 
-  assignedTo: id.optional(), // AdminUser _id (optional)
-  stage: id.required(), // Stage _id (required)
-  status: Joi.optional(), // prevent direct writes; server derives from stage.key
+  assignedTo: id.optional(),
+  stage: id.required(), // Stage _id
+  status: Joi.optional(),
 
   notes: Joi.string().allow("", null),
-  createdBy: id.optional(), // typically set via auth middleware
+  createdBy: id.optional(),
 });
 
-/** -------- Update (partial) --------
- * - allow changing stage (server updates status accordingly)
- * - forbid direct status writes
- */
+/** -------- Update -------- */
 export const updateSchema = Joi.object({
   clientName: Joi.string().min(2).max(120),
   jobDescription: Joi.string().min(3),
   source: Joi.string().valid("website", "referral", "linkedin", "job_board", "other"),
-  assignedTo: Joi.alternatives().try(id, Joi.valid(null)), // null to unassign
-  stage: id, // changing stage triggers status update server-side
-  status: Joi.optional(), // keep status managed by server
+  assignedTo: Joi.alternatives().try(id, Joi.valid(null)),
+  stage: id,
+  status: Joi.optional(),
   notes: Joi.string().allow("", null),
 }).min(1);
 
-/** -------- Assign / Unassign --------
- * - explicit endpoint to set or clear assignee
- */
+/** -------- Assign -------- */
 export const assignSchema = Joi.object({
-  assignedTo: Joi.alternatives().try(id, Joi.valid(null)).required(), // null to unassign
+  assignedTo: Joi.alternatives().try(id, Joi.valid(null)).required(),
 });
 
-/** -------- Change Stage (preferred over "change status") -------- */
+/** -------- Change Stage -------- */
 export const changeStageSchema = Joi.object({
   stage: id.required(),
 });
 
-/** (Optional) Back-compat: Change Status (dynamic string)
- * Prefer changeStageSchema. If you still have a /status endpoint, keep this:
- */
-export const statusSchema = Joi.object({
-  status: Joi.string()
-    .trim()
-    .pattern(/^[a-z0-9_]+$/)
-    .required(),
+/** -------- Change Lifecycle Status -------- */
+export const changeStatusSchema = Joi.object({
+  status: Joi.string().valid("active", "delayed", "deleted").required(),
 });
 
-/** -------- List / Query --------
- * - supports filtering by either stage (recommended) or status (string)
- * - status accepts any kebab/underscore/slug-like token, plus "all"
- */
+/** -------- List / Query -------- */
 export const listQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(10),
   search: Joi.string().allow(""),
 
-  // dynamic status (or "all")
-  status: Joi.alternatives()
-    .try(
-      Joi.string().valid("all"),
-      Joi.string()
-        .trim()
-        .pattern(/^[a-z0-9_]+$/),
-    )
-    .default("all"),
+  // lifecycle status filter
+  status: Joi.string().valid("all", "active", "delayed", "deleted").default("all"),
 
-  // recommended: filter by stage _id
-  stage: id.optional(),
+  // stage filter can be "all" or a valid ObjectId
+  stage: Joi.alternatives().try(Joi.string().valid("all"), id).default("all"),
 
   source: Joi.string().valid("website", "referral", "linkedin", "job_board", "other"),
   assignedTo: id,
@@ -89,9 +66,7 @@ export const listQuerySchema = Joi.object({
   order: Joi.string().valid("asc", "desc").default("desc"),
 });
 
-/** -------- Kanban: move card --------
- * PATCH /kanban/leads/:id/move  { toStageId }
- */
+/** -------- Kanban Move -------- */
 export const moveSchema = Joi.object({
   toStageId: id.required(),
 });

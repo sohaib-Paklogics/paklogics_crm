@@ -39,11 +39,7 @@ export async function moveLead(leadId, toStageId) {
   const target = stages.find((s) => String(s._id) === String(toStageId));
   if (!target) throw new ApiError(404, "Target stage not found");
 
-  const updated = await Lead.findByIdAndUpdate(
-    leadId,
-    { $set: { stage: target._id, status: target.key } },
-    { new: true },
-  )
+  const updated = await Lead.findByIdAndUpdate(leadId, { $set: { stage: target._id } }, { new: true })
     .populate("assignedTo", "username role")
     .populate("createdBy", "username role");
 

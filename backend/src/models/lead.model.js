@@ -1,5 +1,19 @@
 import mongoose from "mongoose";
 
+const lifecycleStatusSchema = new mongoose.Schema(
+  {
+    value: {
+      type: String,
+      enum: ["active", "delayed", "deleted"],
+      required: true,
+      default: "active",
+    },
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "AdminUser" },
+    changedAt: { type: Date },
+  },
+  { _id: false },
+);
+
 const leadSchema = new mongoose.Schema(
   {
     clientName: {
@@ -20,12 +34,12 @@ const leadSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "AdminUser",
     },
+
     status: {
-      type: String,
-      required: true,
-      trim: true,
-      default: "new",
+      type: lifecycleStatusSchema,
+      default: () => ({ value: "active" }),
     },
+
     stage: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Stage",
@@ -45,8 +59,8 @@ const leadSchema = new mongoose.Schema(
   },
 );
 
-// Add indexes for better query performance
-leadSchema.index({ status: 1 });
+// Indexes
+leadSchema.index({ "status.value": 1 });
 leadSchema.index({ source: 1 });
 leadSchema.index({ assignedTo: 1 });
 leadSchema.index({ createdBy: 1 });

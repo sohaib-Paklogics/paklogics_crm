@@ -8,7 +8,6 @@ import { Plus, Search, Filter, Eye, Trash2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -27,9 +26,11 @@ import {
 } from "@/components/ui/table";
 import { AddLeadModal } from "@/components/modals/add-lead-modal";
 
-// ✅ Uses the store API we implemented earlier
+import api from "@/lib/api"; // <-- for fetching stages
 import { useLeadsStore } from "@/stores/leads.store";
-import { LeadSource } from "@/types/lead";
+import type { LeadSource, Stage as StageType } from "@/types/lead";
+import StatusBadge from "@/components/common/StatusBadge";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -37,20 +38,49 @@ export default function LeadsPage() {
   // UI state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<LeadSource>("all");
 
-  // Store
-  const { items, isLoading, pagination, filters, fetch, remove, setFilters } =
-    useLeadsStore();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTargetId, setConfirmTargetId] = useState<string | null>(null);
+  const [confirmTargetName, setConfirmTargetName] = useState<string>("");
 
-  // Load on mount & whenever filters change
+  const [stages, setStages] = useState<StageType[]>([]);
+
+  // Store
+  const {
+    items,
+    isLoading,
+    pagination,
+    filters,
+    fetch,
+    changeStatus,
+    setFilters,
+    reset,
+  } = useLeadsStore();
+
+  // Load stages once
+  useEffect(() => {
+    const fetchStages = async () => {
+      try {
+        const { data } = await api.get<{ success: boolean; data: StageType[] }>(
+          "/stages"
+        );
+        if (data?.success) setStages(data.data || []);
+      } catch {
+        // silent; keep dropdown usable with just "All Stages"
+      }
+    };
+    fetchStages();
+  }, []);
+
+  // Load leads on mount
   useEffect(() => {
     fetch({ page: filters.page ?? 1, limit: filters.limit ?? 10 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handy memo for total
+  // total
   const totalCount = useMemo(() => pagination?.total ?? 0, [pagination]);
 
   // Actions
@@ -58,7 +88,8 @@ export default function LeadsPage() {
     const merged = {
       ...filters,
       ...(searchTerm ? { search: searchTerm } : { search: "" }),
-      status: statusFilter,
+      // use stage instead of status
+      stage: stageFilter, // "all" or stage _id
       ...(sourceFilter !== "all"
         ? { source: sourceFilter }
         : { source: undefined }),
@@ -72,12 +103,24 @@ export default function LeadsPage() {
     await loadLeads({ page: 1 });
   };
 
-  const handleDeleteLead = async (id: string) => {
-    const ok = confirm("Are you sure you want to delete this lead?");
-    if (!ok) return;
-    const success = await remove(id);
+  // OPEN confirm dialog instead of window.confirm
+  const requestDelete = (id: string, name: string) => {
+    setConfirmTargetId(id);
+    setConfirmTargetName(name);
+    setConfirmOpen(true);
+  };
+
+  // Confirm deletion
+  const handleConfirmDelete = async () => {
+    if (!confirmTargetId) return;
+    const success = await changeStatus(confirmTargetId, "deleted");
+    setConfirmOpen(false);
+    setConfirmTargetId(null);
     if (success) {
+      toast.success("Lead deleted");
       await loadLeads();
+    } else {
+      toast.error("Failed to delete lead");
     }
   };
 
@@ -85,32 +128,6 @@ export default function LeadsPage() {
     if (!pagination) return;
     if (nextPage < 1 || nextPage > (pagination.pages || 1)) return;
     await loadLeads({ page: nextPage });
-  };
-
-  // UI helpers
-  const getStatusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      new: "bg-blue-100 text-blue-800",
-      interview_scheduled: "bg-yellow-100 text-yellow-800",
-      test_assigned: "bg-purple-100 text-purple-800",
-      completed: "bg-green-100 text-green-800",
-    };
-    return map[status] || "bg-gray-100 text-gray-800";
-  };
-
-  const prettyStatus = (status: string) => {
-    switch (status) {
-      case "new":
-        return "New";
-      case "interview_scheduled":
-        return "Interview Scheduled";
-      case "test_assigned":
-        return "Test Assigned";
-      case "completed":
-        return "Completed";
-      default:
-        return status;
-    }
   };
 
   const prettySource = (source: string) => {
@@ -129,6 +146,12 @@ export default function LeadsPage() {
         return source;
     }
   };
+
+  const stageName = (stage?: StageType | string) =>
+    typeof stage === "object"
+      ? stage?.name
+      : stages.find((s) => s._id === stage)?.name ||
+        (stage ? String(stage) : "—");
 
   return (
     <MainLayout>
@@ -168,27 +191,30 @@ export default function LeadsPage() {
               <Button onClick={handleSearch} size="sm">
                 Search
               </Button>
+              <Button variant={"outline"} onClick={() => reset()} size="sm">
+                Reset
+              </Button>
             </div>
 
+            {/* Stage filter (replaces Status) */}
             <Select
-              value={statusFilter}
+              value={stageFilter}
               onValueChange={(val) => {
-                setStatusFilter(val as string);
-                // reset to page 1 when filter changes
-                loadLeads({ page: 1, status: val as string });
+                setStageFilter(val as string);
+                // reset to page 1 on change
+                loadLeads({ page: 1, stage: val });
               }}
             >
               <SelectTrigger className="w-full md:w-56">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder="Filter by stage" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="interview_scheduled">
-                  Interview Scheduled
-                </SelectItem>
-                <SelectItem value="test_assigned">Test Assigned</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="all">All Stages</SelectItem>
+                {stages.map((s) => (
+                  <SelectItem className="capitalize" key={s._id} value={s._id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -236,7 +262,7 @@ export default function LeadsPage() {
                   <TableHead>Client Name</TableHead>
                   <TableHead>Job Description</TableHead>
                   <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Stage</TableHead>
                   <TableHead>Assigned To</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Actions</TableHead>
@@ -256,12 +282,13 @@ export default function LeadsPage() {
                       {lead.jobDescription}
                     </TableCell>
                     <TableCell>{prettySource(lead.source)}</TableCell>
+
+                    {/* Stage */}
                     <TableCell>
-                      <Badge className={getStatusBadge(lead.status)}>
-                        {prettyStatus(lead.status)}
-                      </Badge>
+                      {<StatusBadge status={stageName(lead.stage)} />}
                     </TableCell>
-                    <TableCell>
+
+                    <TableCell className="capitalize">
                       {lead.assignedTo?.username ?? "Unassigned"}
                     </TableCell>
                     <TableCell>
@@ -280,7 +307,9 @@ export default function LeadsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteLead(lead._id)}
+                          onClick={() =>
+                            requestDelete(lead._id, lead.clientName)
+                          }
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -293,7 +322,7 @@ export default function LeadsPage() {
                 {!isLoading && items.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center text-muted-foreground"
                     >
                       No leads found.
@@ -338,6 +367,20 @@ export default function LeadsPage() {
             await loadLeads({ page: 1 }); // refresh list
             toast.success("Lead created successfully");
           }}
+        />
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Delete Lead"
+          description={
+            confirmTargetName
+              ? `Are you sure you want to delete "${confirmTargetName}"? This action cannot be undone.`
+              : "Are you sure you want to delete this lead? This action cannot be undone."
+          }
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="destructive"
+          onConfirm={handleConfirmDelete}
         />
       </div>
     </MainLayout>

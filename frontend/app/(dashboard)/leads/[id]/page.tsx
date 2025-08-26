@@ -64,7 +64,7 @@ export default function LeadDetailPage() {
       clientName: editData.clientName,
       jobDescription: editData.jobDescription,
       source: editData.source,
-      status: editData.status,
+      stage: editData.stage,
       notes: editData.notes,
     };
 

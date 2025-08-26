@@ -1,3 +1,4 @@
+// services/message.service.ts
 import api from "@/lib/api";
 import type {
   ApiResponse,
@@ -30,6 +31,18 @@ export const messageService = {
     const { data } = await api.get<ApiResponse<PaginatedResponse<ChatMessage>>>(
       `/leads/${leadId}/messages`,
       { params }
+    );
+    return data;
+  },
+
+  edit: async (
+    leadId: string,
+    messageId: string,
+    content: string
+  ): Promise<ApiResponse<ChatMessage>> => {
+    const { data } = await api.patch<ApiResponse<ChatMessage>>(
+      `/${leadId}/messages/${messageId}`,
+      { content }
     );
     return data;
   },

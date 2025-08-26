@@ -14,5 +14,6 @@ export const listQuery = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(10),
   from: Joi.date(),
   to: Joi.date(),
+  search: Joi.string().allow("", null),
   status: Joi.string().valid("scheduled", "in-progress", "completed", "canceled", "rescheduled"),
 });

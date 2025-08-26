@@ -3,6 +3,9 @@ import Joi from "joi";
 export const createSchema = Joi.object({
   content: Joi.string().trim().min(1).required(),
 });
+export const editSchema = Joi.object({
+  content: Joi.string().trim().min(1).required(),
+});
 
 export const listQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),

@@ -8,6 +8,7 @@ interface AttachmentsState {
   items: Attachment[];
   pagination: PaginatedResponse<Attachment>["pagination"] | null;
   isLoading: boolean;
+  isUploading: boolean;
 
   fetch: (leadId: string, page?: number, limit?: number) => Promise<void>;
   upload: (leadId: string, file: File) => Promise<Attachment | null>;
@@ -18,6 +19,7 @@ export const useAttachmentsStore = create<AttachmentsState>((set, get) => ({
   items: [],
   pagination: null,
   isLoading: false,
+  isUploading: false,
 
   fetch: async (leadId, page = 1, limit = 10) => {
     set({ isLoading: true });
@@ -35,9 +37,12 @@ export const useAttachmentsStore = create<AttachmentsState>((set, get) => ({
   },
 
   upload: async (leadId, file) => {
+    set({ isUploading: true });
+
     const res = await callApi(() => attachmentService.upload(leadId, file), {
       successMessage: "File uploaded",
     });
+    set({ isUploading: false });
     if (res?.success) {
       set({ items: [res.data, ...get().items] });
       return res.data;

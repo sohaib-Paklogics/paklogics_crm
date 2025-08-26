@@ -1,3 +1,4 @@
+// stores/messages.store.ts
 import { create } from "zustand";
 import { callApi } from "@/lib/callApi";
 import { messageService } from "@/services/message.service";
@@ -7,6 +8,7 @@ interface MessagesState {
   items: ChatMessage[];
   pagination: PaginatedResponse<ChatMessage>["pagination"] | null;
   isLoading: boolean;
+  isSending: boolean;
 
   fetch: (
     leadId: string,
@@ -15,13 +17,17 @@ interface MessagesState {
     opts?: { order?: "asc" | "desc"; before?: string; after?: string }
   ) => Promise<void>;
   send: (leadId: string, content: string) => Promise<boolean>;
+  edit: (
+    leadId: string,
+    messageId: string,
+    content: string
+  ) => Promise<boolean>;
   markRead: (messageId: string, read?: boolean) => Promise<void>;
   markAllRead: (leadId: string) => Promise<void>;
   remove: (messageId: string) => Promise<void>;
 
-  // helpers
-  prepend: (msg: ChatMessage) => void; // if using desc order
-  append: (msg: ChatMessage) => void; // if using asc order (default here)
+  prepend: (msg: ChatMessage) => void;
+  append: (msg: ChatMessage) => void;
   clear: () => void;
 }
 
@@ -29,6 +35,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   items: [],
   pagination: null,
   isLoading: false,
+  isSending: false,
 
   fetch: async (leadId, page = 1, limit = 50, opts = {}) => {
     set({ isLoading: true });
@@ -56,12 +63,12 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   },
 
   send: async (leadId, content) => {
-    // optimistic append (asc order)
+    set({ isSending: true });
     const tempId = `temp-${Date.now()}`;
     const optimistic: ChatMessage = {
       _id: tempId,
       leadId,
-      senderId: "You",
+      senderId: "You" as any, // depending on your type, this could be object | string
       content,
       timestamp: new Date().toISOString(),
       readStatus: true,
@@ -71,8 +78,9 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     const res = await callApi(() => messageService.send(leadId, content), {
       showSuccess: false,
     });
+    set({ isSending: false });
+
     if (res?.success) {
-      // replace temp with real
       set({
         items: get().items.map((m) =>
           m._id === tempId ? (res.data as ChatMessage) : m
@@ -80,8 +88,36 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       });
       return true;
     } else {
-      // rollback optimistic
       set({ items: get().items.filter((m) => m._id !== tempId) });
+      return false;
+    }
+  },
+
+  // ✅ NEW: edit with optimistic UI
+  edit: async (leadId, messageId, content) => {
+    const prev = get().items;
+    // optimistic local edit
+    set({
+      items: prev.map((m) => (m._id === messageId ? { ...m, content } : m)),
+    });
+
+    const res = await callApi(
+      () => messageService.edit(leadId, messageId, content),
+      {
+        showSuccess: true,
+        successMessage: "Message updated",
+      }
+    );
+
+    if (res?.success) {
+      const updated = res.data as ChatMessage;
+      set({
+        items: get().items.map((m) => (m._id === messageId ? updated : m)),
+      });
+      return true;
+    } else {
+      // rollback on failure
+      set({ items: prev });
       return false;
     }
   },
@@ -104,9 +140,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       showSuccess: false,
     });
     if (res?.success) {
-      set({
-        items: get().items.map((m) => ({ ...m, readStatus: true })),
-      });
+      set({ items: get().items.map((m) => ({ ...m, readStatus: true })) });
     }
   },
 
@@ -117,7 +151,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       showSuccess: true,
       successMessage: "Message deleted",
     });
-    if (!res?.success) set({ items: prev }); // rollback on failure
+    if (!res?.success) set({ items: prev });
   },
 
   prepend: (msg) => set({ items: [msg, ...get().items] }),

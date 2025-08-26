@@ -5,8 +5,9 @@ import { ArrowLeft, Edit, Save, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 
-import { Lead, LeadSource } from "@/types/lead";
+import { Lead, LeadSource, Stage as StageType } from "@/types/lead";
 import { Button } from "../ui/button";
+import StatusBadge from "../common/StatusBadge";
 
 const LeadHeader = ({
   lead,
@@ -23,20 +24,10 @@ const LeadHeader = ({
   onCancel: () => void;
   onSave: () => void;
 }) => {
-  const prettyStatus = (s: String) =>
-    s === "interview_scheduled"
-      ? "Interview Scheduled"
-      : s === "test_assigned"
-      ? "Test Assigned"
-      : s[0].toUpperCase() + s.slice(1);
-  const statusClass: any = {
-    new: "bg-blue-100 text-blue-800",
-    interview_scheduled: "bg-yellow-100 text-yellow-800",
-    test_assigned: "bg-purple-100 text-purple-800",
-    completed: "bg-green-100 text-green-800",
-  };
   const prettySource = (src: LeadSource) =>
     src === "job_board" ? "Job Board" : src[0].toUpperCase() + src.slice(1);
+
+  console.log("Lead in Header:", lead);
 
   return (
     <div className="flex items-center justify-between">
@@ -50,15 +41,17 @@ const LeadHeader = ({
         <div>
           <h1 className="text-3xl font-bold">{lead.clientName}</h1>
           <div className="flex items-center gap-2 mt-1">
-            <Badge className={statusClass[lead.status]}>
-              {prettyStatus(lead.status)}
-            </Badge>
+            <StatusBadge
+              status={
+                typeof lead.stage === "object" ? lead.stage.name : lead.stage
+              }
+            />
             <span className="text-gray-500">•</span>
             <span className="text-gray-600">{prettySource(lead.source)}</span>
             {lead.assignedTo && (
               <>
                 <span className="text-gray-500">•</span>
-                <span className="text-gray-600">
+                <span className="text-gray-600 capitalize">
                   Assigned to {lead.assignedTo.username}
                 </span>
               </>

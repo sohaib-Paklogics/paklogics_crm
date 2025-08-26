@@ -11,6 +11,7 @@ router.patch("/leads/:id/messages/read", protect, ctrl.markAllRead);
 
 // Message-scoped ops
 router.patch("/messages/:messageId/read", protect, ctrl.markRead);
+router.patch("/:id/messages/:messageId", protect, ctrl.editMessage);
 router.delete("/messages/:messageId", protect, ctrl.remove);
 
 export default router;
