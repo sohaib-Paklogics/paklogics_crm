@@ -20,6 +20,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react"; // 👈 Import icons
 import { authService } from "@/services/auth.service";
 import { toast } from "sonner";
 import useAuthStore from "@/stores/auth-store";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +70,13 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-validiz-brown">
-            Validiz CRM
+            <Image
+              src="/assets/logo.png"
+              alt="Validiz Logo"
+              width={150}
+              height={50}
+              className="mx-auto mt-2 inline"
+            />
           </CardTitle>
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>

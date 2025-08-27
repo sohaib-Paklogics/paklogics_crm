@@ -17,12 +17,23 @@ export const eventService = {
     return data;
   },
 
-  list: async (
+  listByLeadId: async (
     leadId: string,
     params: { page?: number; limit?: number; from?: string; to?: string } = {}
   ): Promise<ApiResponse<PaginatedResponse<LeadEvent>>> => {
     const { data } = await api.get<ApiResponse<PaginatedResponse<LeadEvent>>>(
       `/leads/${leadId}/events`,
+      {
+        params,
+      }
+    );
+    return data;
+  },
+  allList: async (
+    params: { page?: number; limit?: number; from?: string; to?: string } = {}
+  ): Promise<ApiResponse<PaginatedResponse<LeadEvent>>> => {
+    const { data } = await api.get<ApiResponse<PaginatedResponse<LeadEvent>>>(
+      `/events`,
       {
         params,
       }

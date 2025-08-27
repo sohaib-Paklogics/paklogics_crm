@@ -227,7 +227,7 @@ export function AddLeadModal({
               </Select>
               {/* Read-only status hint */}
               <p className="text-xs text-muted-foreground">
-                Status:{" "}
+                Stage:{" "}
                 <span className="font-medium">
                   {derivedStatus.replace("_", " ")}
                 </span>
@@ -257,7 +257,11 @@ export function AddLeadModal({
                   <SelectItem value="unassigned">Unassigned</SelectItem>
 
                   {developers.map((u: any) => (
-                    <SelectItem key={u._id} value={u._id}>
+                    <SelectItem
+                      className="capitalize"
+                      key={u._id}
+                      value={u._id}
+                    >
                       {u.username}
                     </SelectItem>
                   ))}

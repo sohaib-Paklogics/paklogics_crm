@@ -43,7 +43,7 @@ const statusColor: Record<NonNullable<LeadEvent["status"]>, string> = {
 };
 
 export default function EventsPanel({ leadId }: { leadId: string }) {
-  const { items, pagination, isLoading, fetch, create, remove } =
+  const { items, pagination, isLoading, fetchByLead, create, remove } =
     useEventsStore();
   const [isSubmiting, setIsSubmiting] = useState(false);
 
@@ -64,7 +64,7 @@ export default function EventsPanel({ leadId }: { leadId: string }) {
   const totalPages = pagination?.pages ?? 1;
 
   useEffect(() => {
-    fetch(leadId, { page: 1, limit: 20 });
+    fetchByLead(leadId, { page: 1, limit: 20 });
   }, [leadId, fetch]);
 
   const reset = () => {
@@ -108,7 +108,7 @@ export default function EventsPanel({ leadId }: { leadId: string }) {
       if (ok) {
         reset();
         // store already unshifts; but refetch to refresh paging counts
-        await fetch(leadId, { page: 1, limit });
+        await fetchByLead(leadId, { page: 1, limit });
       }
     } finally {
       setIsSubmiting(false);
@@ -117,7 +117,7 @@ export default function EventsPanel({ leadId }: { leadId: string }) {
 
   const goTo = async (nextPage: number) => {
     if (nextPage < 1 || nextPage > totalPages) return;
-    await fetch(leadId, { page: nextPage, limit });
+    await fetchByLead(leadId, { page: nextPage, limit });
   };
 
   return (
@@ -193,7 +193,7 @@ export default function EventsPanel({ leadId }: { leadId: string }) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => fetch(leadId, { page, limit })}
+                onClick={() => fetchByLead(leadId, { page, limit })}
               >
                 Refresh
               </Button>

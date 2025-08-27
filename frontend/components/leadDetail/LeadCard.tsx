@@ -119,7 +119,7 @@ const LeadCard = ({
                             {assigned.username?.charAt(0)?.toUpperCase() ?? "U"}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-xs text-gray-600">
+                        <span className="text-xs text-gray-600 capitalize">
                           {assigned.username}
                         </span>
                       </div>

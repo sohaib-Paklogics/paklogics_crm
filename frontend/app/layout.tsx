@@ -10,8 +10,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Validiz CRM - Staffing & Hiring Management",
-  description: "Modern role-based CRM for staffing and hiring",
-  generator: "v0.dev",
+  description:
+    "Validiz CRM is an AI-ready, modern customer relationship management platform designed specifically for tech agencies, service-based businesses, and growing startups. With a clean, intuitive interface and powerful workflow automation features, Validiz helps sales and operations teams stay organized, move faster, and close more deals confidently.",
 };
 
 export default function RootLayout({

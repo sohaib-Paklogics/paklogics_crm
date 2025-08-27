@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, FileText, Calendar, TrendingUp } from "lucide-react";
+import StatusBadge from "@/components/common/StatusBadge";
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -199,17 +200,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge
-                          className={
-                            lead.status === "new"
-                              ? "bg-validiz-mustard text-validiz-brown"
-                              : lead.status === "completed"
-                              ? "bg-green-100 text-green-800"
-                              : ""
-                          }
-                        >
-                          {String(lead.status).replace("_", " ")}
-                        </Badge>
+                        <StatusBadge status={lead.stage?.name} />
                       </div>
                     </div>
                   );

@@ -9,7 +9,14 @@ interface EventsState {
   pagination: PaginatedResponse<LeadEvent>["pagination"] | null;
   isLoading: boolean;
 
-  fetch: (
+  fetch: (params?: {
+    page?: number;
+    limit?: number;
+    from?: string;
+    to?: string;
+    search?: string;
+  }) => Promise<void>;
+  fetchByLead: (
     leadId: string,
     params?: {
       page?: number;
@@ -34,9 +41,23 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   pagination: null,
   isLoading: false,
 
-  fetch: async (leadId, params = {}) => {
+  fetch: async (params = {}) => {
     set({ isLoading: true });
-    const res = await callApi(() => eventService.list(leadId, params), {
+    const res = await callApi(() => eventService.allList(params), {
+      showSuccess: false,
+    });
+    if (res?.success) {
+      set({
+        items: res.data.data,
+        pagination: res.data.pagination,
+        isLoading: false,
+      });
+    } else set({ isLoading: false });
+  },
+
+  fetchByLead: async (leadId, params = {}) => {
+    set({ isLoading: true });
+    const res = await callApi(() => eventService.listByLeadId(leadId, params), {
       showSuccess: false,
     });
     if (res?.success) {

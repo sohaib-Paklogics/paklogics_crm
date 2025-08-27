@@ -20,6 +20,7 @@ import {
   Home,
 } from "lucide-react";
 import useAuthStore from "@/stores/auth-store";
+import Image from "next/image";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home, permission: null },
@@ -88,8 +89,14 @@ export function Sidebar() {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 border-b border-white/10">
-            <h1 className="text-xl font-bold">Validiz CRM</h1>
+          <div className="flex items-center justify-center h-24 px-4 border-b border-white/10">
+            <Image
+              src="/assets/logo.png"
+              alt="Validiz Logo"
+              width={200}
+              height={75}
+              className="mr-2"
+            />
           </div>
 
           {/* Navigation */}

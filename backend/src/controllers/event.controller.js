@@ -15,6 +15,13 @@ export const list = asyncHandler(async (req, res) => {
   res.json(ApiResponse.success(result, "Events fetched"));
 });
 
+export const listAll = asyncHandler(async (req, res) => {
+  console.log("listAll called");
+  const q = await v.listQuery.validateAsync(req.query);
+  const result = await service.listAll(q);
+  res.json(ApiResponse.success(result, "All events fetched"));
+});
+
 export const remove = asyncHandler(async (req, res) => {
   const result = await service.remove(req.params.eventId);
   res.json(ApiResponse.success(result, "Event deleted"));

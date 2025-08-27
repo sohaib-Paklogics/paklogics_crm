@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Droppable, DroppableProps } from "react-beautiful-dnd";
 
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,11 @@ const KanbanColumn = ({
   allStages,
   onChangeStatus,
   stageActions,
+  // NEW props for search focusing
+  registerStageEl,
+  registerListEl,
+  registerFirstCardEl,
+  highlightLeadId,
 }: {
   stage: Stage;
   leads: Lead[];
@@ -45,10 +50,43 @@ const KanbanColumn = ({
     addAfter: (name: string, color?: string) => Promise<void>;
     refresh?: () => Promise<void>;
   };
+  registerStageEl?: (stageId: string, el: HTMLDivElement | null) => void;
+  registerListEl?: (stageId: string, el: HTMLDivElement | null) => void;
+  registerFirstCardEl?: (
+    stageId: string,
+    leadId: string | null,
+    el: HTMLElement | null
+  ) => void;
+  highlightLeadId?: string | null;
 }) => {
+  // outer column ref (for horizontal positioning)
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    registerStageEl?.(String(stage._id), outerRef.current);
+    return () => registerStageEl?.(String(stage._id), null);
+  }, [registerStageEl, stage._id]);
+
+  // inner scrollable list ref (for vertical scroll)
+  const listRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    registerListEl?.(String(stage._id), listRef.current);
+    return () => registerListEl?.(String(stage._id), null);
+  }, [registerListEl, stage._id]);
+
+  // we only register the FIRST card element (index 0)
+  const firstLeadId = useMemo(
+    () => (leads[0]?._id ? String(leads[0]._id) : null),
+    [leads]
+  );
+  const firstCardRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    registerFirstCardEl?.(String(stage._id), firstLeadId, firstCardRef.current);
+    return () => registerFirstCardEl?.(String(stage._id), null, null);
+  }, [registerFirstCardEl, stage._id, firstLeadId]);
+
   return (
     // ⬇️ fixed width + don’t shrink/grow in the row
-    <div className="space-y-4 flex-none w-[360px]">
+    <div className="space-y-4 flex-none w-[360px]" ref={outerRef}>
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <div
@@ -69,7 +107,10 @@ const KanbanColumn = ({
       <StrictModeDroppable droppableId={String(stage._id)}>
         {(provided, snapshot) => (
           <div
-            ref={provided.innerRef}
+            ref={(el) => {
+              provided.innerRef(el);
+              listRef.current = el;
+            }}
             {...provided.droppableProps}
             className={`min-h-[500px] p-3 rounded-lg border-2 border-dashed transition-colors
               ${
@@ -77,20 +118,40 @@ const KanbanColumn = ({
                   ? "border-validiz-mustard bg-validiz-mustard/5"
                   : "border-gray-200 bg-gray-50"
               }
-              overflow-y-auto`} // optional: vertical scroll within the column
+              overflow-y-auto`}
           >
-            {leads.map((lead, index) => (
-              <Link href={`/leads/${lead._id}`} key={String(lead._id)}>
-                <LeadCard
-                  key={String(lead._id)}
-                  lead={lead}
-                  index={index}
-                  canDragDrop={canDragDrop}
-                  allStages={allStages}
-                  onChangeStatus={onChangeStatus}
-                />
-              </Link>
-            ))}
+            {leads.map((lead, index) => {
+              const id = String(lead._id);
+              const isHighlight = highlightLeadId === id;
+
+              return (
+                <div
+                  key={id}
+                  ref={(el) => {
+                    // only capture first card element in this column
+                    if (index === 0) {
+                      firstCardRef.current = el;
+                    }
+                  }}
+                  className={`rounded-lg ${
+                    isHighlight
+                      ? "ring-2 ring-validiz-mustard animate-[pulse_0.9s_ease-in-out_2]"
+                      : ""
+                  }`}
+                >
+                  <Link href={`/leads/${id}`}>
+                    <LeadCard
+                      key={id}
+                      lead={lead}
+                      index={index}
+                      canDragDrop={canDragDrop}
+                      allStages={allStages}
+                      onChangeStatus={onChangeStatus}
+                    />
+                  </Link>
+                </div>
+              );
+            })}
             {provided.placeholder}
 
             {!isLoading && leads.length === 0 && (

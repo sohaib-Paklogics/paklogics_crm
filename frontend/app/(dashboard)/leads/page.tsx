@@ -31,6 +31,7 @@ import { useLeadsStore } from "@/stores/leads.store";
 import type { LeadSource, Stage as StageType } from "@/types/lead";
 import StatusBadge from "@/components/common/StatusBadge";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import useAuthStore from "@/stores/auth-store";
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function LeadsPage() {
   const [confirmTargetName, setConfirmTargetName] = useState<string>("");
 
   const [stages, setStages] = useState<StageType[]>([]);
-
+  const { user, fetchUser } = useAuthStore();
   // Store
   const {
     items,
@@ -164,10 +165,12 @@ export default function LeadsPage() {
               Manage your leads and opportunities
             </p>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Lead
-          </Button>
+          {user?.role !== "developer" && (
+            <Button onClick={() => setIsAddModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Lead
+            </Button>
+          )}
         </div>
 
         {/* Filters */}

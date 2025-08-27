@@ -157,14 +157,11 @@ export default function CalendarPage() {
   // - If debouncedQ exists → fetch across ALL data for this lead (no from/to).
   // - Else → fetch by current view window (month/week/day).
   useEffect(() => {
-    if (!selectedLeadId) return;
     if (debouncedQ) {
-      fetch(selectedLeadId, { page: 1, limit: 100, search: debouncedQ }).catch(
-        () => {}
-      );
+      fetch({ page: 1, limit: 100, search: debouncedQ }).catch(() => {});
     } else {
       const { from, to } = getRangeForView(currentDate);
-      fetch(selectedLeadId, { page: 1, limit: 100, from, to }).catch(() => {});
+      fetch({ page: 1, limit: 100, from, to }).catch(() => {});
     }
   }, [selectedLeadId, currentDate, view, debouncedQ, fetch, getRangeForView]);
 
@@ -326,14 +323,14 @@ export default function CalendarPage() {
           if (ok) {
             // re-fetch using the same search-rule logic (q → all, else range)
             if (debouncedQ) {
-              await fetch(selectedLeadId, {
+              await fetch({
                 page: 1,
                 limit: 100,
                 search: debouncedQ,
               });
             } else {
               const { from, to } = getRangeForView(currentDate);
-              await fetch(selectedLeadId, { page: 1, limit: 100, from, to });
+              await fetch({ page: 1, limit: 100, from, to });
             }
             setIsAddEventOpen(false);
           }
@@ -347,16 +344,15 @@ export default function CalendarPage() {
         onDelete={async (id) => {
           await remove(id);
           setSelectedEvent(null);
-          if (!selectedLeadId) return;
           if (debouncedQ) {
-            await fetch(selectedLeadId, {
+            await fetch({
               page: 1,
               limit: 100,
               search: debouncedQ,
             });
           } else {
             const { from, to } = getRangeForView(currentDate);
-            await fetch(selectedLeadId, { page: 1, limit: 100, from, to });
+            await fetch({ page: 1, limit: 100, from, to });
           }
         }}
       />
@@ -397,26 +393,9 @@ function HeaderBar({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-        <LeadSelector
-          leads={leads}
-          value={selectedLeadId}
-          onChange={setSelectedLeadId}
-        />
-
         <SearchBox value={q} onChange={setQ} disabled={!selectedLeadId} />
 
         <ViewSwitcher view={view} setView={setView} />
-
-        {canCreateEvents && (
-          <Button
-            onClick={openAddEvent}
-            className="bg-validiz-brown hover:bg-validiz-brown/90"
-            disabled={!selectedLeadId}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Event
-          </Button>
-        )}
       </div>
     </div>
   );

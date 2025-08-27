@@ -6,7 +6,7 @@ import {
   type DropResult,
   type DragStart,
 } from "react-beautiful-dnd";
-import { Eye, Plus } from "lucide-react";
+import { Eye, Plus, ArrowLeft, ArrowRight, Search } from "lucide-react";
 
 import { MainLayout } from "@/components/layout/main-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,9 +34,6 @@ export default function KanbanPage() {
     addBefore,
     addAfter,
   } = useStagesStore();
-
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   const buildBoardParams = useCallback(() => {
     const params: Record<string, any> = { limit: 100 };
@@ -84,8 +81,21 @@ export default function KanbanPage() {
   };
 
   // ---------- Local (Kanban-only) search ----------
-  const [q, setQ] = useState("");
-  const needle = useMemo(() => q.trim().toLowerCase(), [q]);
+  const [searchInput, setSearchInput] = useState(""); // uncontrolled typing
+  const [searchQuery, setSearchQuery] = useState(""); // committed query (Enter / button)
+  const needle = useMemo(() => searchQuery.trim().toLowerCase(), [searchQuery]);
+
+  // helper handlers
+  const commitSearch = useCallback(() => {
+    setSearchQuery(searchInput);
+  }, [searchInput]);
+
+  const onSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") commitSearch();
+    },
+    [commitSearch]
+  );
 
   const columns = useMemo(() => {
     const colEntries: { stage: Stage; leads: Lead[] }[] = [];
@@ -119,67 +129,256 @@ export default function KanbanPage() {
   );
   // -------------------------------------------------
 
-  // ---------- Horizontal edge auto-scroll while dragging ----------
+  // ---------- Smooth scrolling engine (hover + drag-edge), with initial measurement ----------
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Drag-edge state
   const isDraggingRef = useRef(false);
-  const rafRef = useRef<number | null>(null);
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
 
-  const EDGE_PX = 80; // distance from left/right edge that triggers scroll
-  const SCROLL_PX = 24; // amount to scroll per animation frame
+  // Hover state: -1 left, 1 right, 0 idle
+  const hoverDirRef = useRef<-1 | 0 | 1>(0);
+
+  // RAF + timing
+  const rafRef = useRef<number | null>(null);
+  const lastTsRef = useRef<number | null>(null);
+  const hoverVelocityRef = useRef(0); // px/s with easing
+
+  // Arrow enablement
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Constants for smoothing
+  const HOVER_MAX_SPEED = 1200; // px/sec
+  const HOVER_ACCEL = 4000; // px/sec^2
+  const DRAG_MAX_SPEED = 900; // px/sec
+  const EDGE_PX = 96; // sensitivity zone near edges
+
+  const updateArrowState = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft < maxScrollLeft);
+  }, []);
+
+  const measureOnNextFrame = useCallback(() => {
+    requestAnimationFrame(updateArrowState);
+  }, [updateArrowState]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    updateArrowState();
+
+    const ro = new ResizeObserver(() => {
+      updateArrowState();
+    });
+
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild as Element);
+
+    const onResize = () => updateArrowState();
+    window.addEventListener("resize", onResize, { passive: true });
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", onResize);
+    };
+  }, [columns, stagesLoading, updateArrowState]);
+
+  const handleUserScroll = useCallback(() => {
+    updateArrowState();
+  }, [updateArrowState]);
 
   const onPointerMove = useCallback((e: PointerEvent) => {
     lastPointer.current = { x: e.clientX, y: e.clientY };
   }, []);
 
-  const tick = useCallback(() => {
-    if (!isDraggingRef.current || !scrollRef.current || !lastPointer.current) {
-      rafRef.current = requestAnimationFrame(tick);
-      return;
-    }
-    const el = scrollRef.current;
-    const rect = el.getBoundingClientRect();
-    const { x } = lastPointer.current;
+  const ensureRaf = useCallback(() => {
+    if (rafRef.current == null) {
+      lastTsRef.current = null;
+      rafRef.current = requestAnimationFrame(function loop(ts: number) {
+        rafRef.current = requestAnimationFrame(loop);
+        const el = scrollRef.current;
+        if (!el) return;
 
-    if (x - rect.left < EDGE_PX) {
-      el.scrollBy({ left: -SCROLL_PX, behavior: "auto" });
-    } else if (rect.right - x < EDGE_PX) {
-      el.scrollBy({ left: SCROLL_PX, behavior: "auto" });
-    }
+        const lastTs = lastTsRef.current ?? ts;
+        const dt = Math.max(0, (ts - lastTs) / 1000);
+        lastTsRef.current = ts;
 
-    rafRef.current = requestAnimationFrame(tick);
-  }, []);
+        updateArrowState();
+
+        // Hover smooth-scroll with acceleration
+        if (hoverDirRef.current !== 0) {
+          const targetSpeed = HOVER_MAX_SPEED * hoverDirRef.current;
+          const current = hoverVelocityRef.current;
+          const next =
+            current +
+            Math.sign(targetSpeed - current) *
+              Math.min(HOVER_ACCEL * dt, Math.abs(targetSpeed - current));
+          hoverVelocityRef.current = next;
+          el.scrollLeft += next * dt;
+          return;
+        } else if (hoverVelocityRef.current !== 0) {
+          const friction = HOVER_ACCEL * 1.25;
+          const current = hoverVelocityRef.current;
+          const decel = Math.min(friction * dt, Math.abs(current));
+          const next = current - Math.sign(current) * decel;
+          hoverVelocityRef.current = Math.abs(next) < 1 ? 0 : next;
+          el.scrollLeft += next * dt;
+          if (hoverVelocityRef.current !== 0) return;
+        }
+
+        // Drag-edge autoscroll
+        if (isDraggingRef.current && lastPointer.current) {
+          const rect = el.getBoundingClientRect();
+          const x = lastPointer.current.x;
+
+          let speed = 0;
+          if (x - rect.left < EDGE_PX) {
+            const t = Math.min(1, (EDGE_PX - (x - rect.left)) / EDGE_PX);
+            speed = -DRAG_MAX_SPEED * t;
+          } else if (rect.right - x < EDGE_PX) {
+            const t = Math.min(1, (EDGE_PX - (rect.right - x)) / EDGE_PX);
+            speed = DRAG_MAX_SPEED * t;
+          }
+
+          if (speed !== 0) {
+            el.scrollLeft += speed * dt;
+            return;
+          }
+        }
+
+        cancelAnimationFrame(rafRef.current!);
+        rafRef.current = null;
+        lastTsRef.current = null;
+      });
+    }
+  }, [DRAG_MAX_SPEED, EDGE_PX, HOVER_ACCEL, HOVER_MAX_SPEED, updateArrowState]);
+
+  const startHoverScroll = useCallback(
+    (dir: -1 | 1) => {
+      hoverDirRef.current = dir;
+      ensureRaf();
+    },
+    [ensureRaf]
+  );
+
+  const stopHoverScroll = useCallback(() => {
+    hoverDirRef.current = 0;
+    ensureRaf();
+  }, [ensureRaf]);
 
   const startAutoScroll = useCallback(() => {
     isDraggingRef.current = true;
     window.addEventListener("pointermove", onPointerMove, { passive: true });
-    rafRef.current = requestAnimationFrame(tick);
-  }, [onPointerMove, tick]);
+    ensureRaf();
+  }, [onPointerMove, ensureRaf]);
 
   const stopAutoScroll = useCallback(() => {
     isDraggingRef.current = false;
     window.removeEventListener("pointermove", onPointerMove);
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    lastPointer.current = null;
   }, [onPointerMove]);
 
   useEffect(() => {
+    measureOnNextFrame();
+  }, [columns.length, stagesLoading, measureOnNextFrame]);
+
+  useEffect(() => {
     return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      lastTsRef.current = null;
+      hoverVelocityRef.current = 0;
+      hoverDirRef.current = 0;
       stopAutoScroll();
     };
   }, [stopAutoScroll]);
   // ----------------------------------------------------------------
 
-  if (!mounted || !user) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-validiz-brown" />
-        </div>
-      </MainLayout>
-    );
-  }
+  // ---------- Search focus: scroll to first matching stage + first card ----------
+  // Refs registry per stage
+  const stageElMap = useRef<Map<string, HTMLDivElement>>(new Map());
+  const listElMap = useRef<Map<string, HTMLDivElement>>(new Map()); // scrollable list inside column
+  const firstCardElMap = useRef<Map<string, HTMLElement>>(new Map());
+
+  // For visual highlight of the focused lead
+  const [highlightLeadId, setHighlightLeadId] = useState<string | null>(null);
+
+  const registerStageEl = useCallback(
+    (stageId: string, el: HTMLDivElement | null) => {
+      if (!el) {
+        stageElMap.current.delete(stageId);
+      } else {
+        stageElMap.current.set(stageId, el);
+      }
+    },
+    []
+  );
+
+  const registerListEl = useCallback(
+    (stageId: string, el: HTMLDivElement | null) => {
+      if (!el) {
+        listElMap.current.delete(stageId);
+      } else {
+        listElMap.current.set(stageId, el);
+      }
+    },
+    []
+  );
+
+  const registerFirstCardEl = useCallback(
+    (stageId: string, leadId: string | null, el: HTMLElement | null) => {
+      if (!el || !leadId) {
+        firstCardElMap.current.delete(stageId);
+      } else {
+        firstCardElMap.current.set(stageId, el);
+      }
+    },
+    []
+  );
+
+  // Effect: whenever search results change and q is non-empty,
+  // jump to first stage with results and first card in it.
+  useEffect(() => {
+    if (!needle) {
+      setHighlightLeadId(null);
+      return;
+    }
+    const firstHit = columns.find((c) => c.leads.length > 0);
+    if (!firstHit) {
+      setHighlightLeadId(null);
+      return;
+    }
+
+    const stageId = String(firstHit.stage._id);
+    const leadId = String(firstHit.leads[0]._id);
+
+    // 1) Scroll horizontally to the column
+    const boardEl = scrollRef.current;
+    const colEl = stageElMap.current.get(stageId);
+    if (boardEl && colEl) {
+      const targetLeft = colEl.offsetLeft - 12; // small padding
+      boardEl.scrollTo({ left: targetLeft, behavior: "smooth" });
+    }
+
+    // 2) Scroll vertically inside the column to its first card
+    const listEl = listElMap.current.get(stageId);
+    const cardEl = firstCardElMap.current.get(stageId);
+    if (listEl && cardEl) {
+      const top = cardEl.offsetTop - 8; // tiny top padding
+      listEl.scrollTo({ top, behavior: "smooth" });
+    }
+
+    // 3) Temporary highlight
+    setHighlightLeadId(leadId);
+    const t = setTimeout(() => setHighlightLeadId(null), 1600);
+    return () => clearTimeout(t);
+  }, [needle, columns]);
+
+  // ----------------------------------------------------------------
 
   if (isLoading) {
     return (
@@ -190,12 +389,10 @@ export default function KanbanPage() {
   }
 
   const onDragStart = (_: DragStart) => {
-    // kick off horizontal edge auto-scroll
     startAutoScroll();
   };
 
   const onDragEnd = async (result: DropResult) => {
-    // always stop edge auto-scroll
     stopAutoScroll();
 
     if (!canDragDrop) return;
@@ -235,11 +432,16 @@ export default function KanbanPage() {
           {/* Right side actions */}
           <div className="flex items-center gap-2">
             <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={onSearchKeyDown}
               placeholder="Search in board…"
               className="h-9 w-[220px] sm:w-[260px]"
             />
+            <Button type="button" onClick={commitSearch} className="h-9">
+              <Search className="w-4 h-4 mr-2" />
+              Search
+            </Button>
 
             <Link href="/leads" className="flex items-center">
               <Button variant={"ghost"}>
@@ -247,7 +449,7 @@ export default function KanbanPage() {
                 View Lead
               </Button>
             </Link>
-            {user.role !== "developer" && (
+            {user?.role !== "developer" && (
               <Button onClick={() => setIsAddModalOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Lead
@@ -257,41 +459,97 @@ export default function KanbanPage() {
         </div>
 
         {/* Kanban Board */}
-        {!anyResults && q ? (
+        {!anyResults && searchQuery ? (
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-              No leads match “{q}”.
+              No leads match “{searchQuery}”.
             </CardContent>
           </Card>
         ) : (
           <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-            <div
-              ref={scrollRef}
-              className="flex gap-6 overflow-x-auto pb-4 overscroll-x-contain"
-              style={{ scrollBehavior: "auto" }} // ensure instant programmatic scroll
-            >
-              {(stagesLoading ? [] : columns).map(({ stage, leads }) => (
-                <KanbanColumn
-                  key={stage._id}
-                  stage={stage}
-                  leads={leads}
-                  canDragDrop={!!canDragDrop}
-                  isLoading={isLoading || stagesLoading}
-                  allStages={stages}
-                  onChangeStatus={changeStatusViaMenu}
-                  stageActions={{
-                    addBefore: async (name: string, color?: string) => {
-                      await addBefore(stage._id, name, color);
-                      await refreshBoard();
-                    },
-                    addAfter: async (name: string, color?: string) => {
-                      await addAfter(stage._id, name, color);
-                      await refreshBoard();
-                    },
-                    refresh: refreshBoard,
-                  }}
-                />
-              ))}
+            <div className="relative">
+              {/* Left hover arrow */}
+              {canScrollLeft && (
+                <button
+                  type="button"
+                  aria-label="Scroll left"
+                  onMouseEnter={() => startHoverScroll(-1)}
+                  onMouseLeave={stopHoverScroll}
+                  onFocus={() => startHoverScroll(-1)}
+                  onBlur={stopHoverScroll}
+                  className="hidden sm:flex items-center justify-center
+                             absolute left-2 top-1/2 -translate-y-1/2 z-10
+                             h-10 w-10 rounded-full bg-white/90 backdrop-blur
+                             shadow border border-gray-200 hover:bg-white
+                             transition"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+              )}
+
+              {/* Right hover arrow */}
+              {canScrollRight && (
+                <button
+                  type="button"
+                  aria-label="Scroll right"
+                  onMouseEnter={() => startHoverScroll(1)}
+                  onMouseLeave={stopHoverScroll}
+                  onFocus={() => startHoverScroll(1)}
+                  onBlur={stopHoverScroll}
+                  className="hidden sm:flex items-center justify-center
+                             absolute right-2 top-1/2 -translate-y-1/2 z-10
+                             h-10 w-10 rounded-full bg-white/90 backdrop-blur
+                             shadow border border-gray-200 hover:bg-white
+                             transition"
+                >
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+              )}
+
+              {/* Optional edge gradients */}
+              <div className="pointer-events-none absolute left-0 top-0 h-full w-8 bg-gradient-to-r from-white/90 to-transparent" />
+              <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-white/90 to-transparent" />
+
+              {/* Scrollable row */}
+              <div
+                ref={scrollRef}
+                className="flex gap-6 overflow-x-auto pb-4 overscroll-x-contain pr-6"
+                style={{ scrollBehavior: "auto" }}
+                onScroll={handleUserScroll}
+              >
+                {(stagesLoading ? [] : columns).map(({ stage, leads }) => (
+                  <KanbanColumn
+                    key={stage._id}
+                    stage={stage}
+                    leads={leads}
+                    canDragDrop={!!canDragDrop}
+                    isLoading={isLoading || stagesLoading}
+                    allStages={stages}
+                    onChangeStatus={changeStatusViaMenu}
+                    stageActions={{
+                      addBefore: async (name: string, color?: string) => {
+                        await addBefore(stage._id, name, color);
+                        await refreshBoard();
+                        measureOnNextFrame();
+                      },
+                      addAfter: async (name: string, color?: string) => {
+                        await addAfter(stage._id, name, color);
+                        await refreshBoard();
+                        measureOnNextFrame();
+                      },
+                      refresh: async () => {
+                        await refreshBoard();
+                        measureOnNextFrame();
+                      },
+                    }}
+                    // NEW: refs + highlight
+                    registerStageEl={registerStageEl}
+                    registerListEl={registerListEl}
+                    registerFirstCardEl={registerFirstCardEl}
+                    highlightLeadId={highlightLeadId}
+                  />
+                ))}
+              </div>
             </div>
           </DragDropContext>
         )}
@@ -333,6 +591,7 @@ export default function KanbanPage() {
           onSuccess={async () => {
             setIsAddModalOpen(false);
             await fetchBoard(buildBoardParams());
+            measureOnNextFrame();
           }}
         />
       </div>
