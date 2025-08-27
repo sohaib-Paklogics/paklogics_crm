@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import useAuthStore from "@/stores/auth-store";
 import { useLeadsStore } from "@/stores/leads.store";
-import { useUserStore } from "@/stores/user-store"; // assuming this returns Admin users
+import { useUserStore } from "@/stores/user-store";
+import { useStagesStore } from "@/stores/stages.store";
+
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,23 +47,58 @@ import {
   Users,
 } from "lucide-react";
 
-// enums aligned with backend
-type LeadStatus = "new" | "interview_scheduled" | "test_assigned" | "completed";
+// Only source enum remains the same
 type LeadSource = "website" | "referral" | "linkedin" | "job_board" | "other";
 
 export default function ReportsPage() {
   const { user, hasPermission } = useAuthStore();
-  const { items: leads, fetch: fetchLeads, isLoading } = useLeadsStore();
+  const {
+    items: leads,
+    fetch: fetchLeads,
+    isLoading,
+    reset: resetFilters,
+  } = useLeadsStore();
   const { users, fetchUsers } = useUserStore();
+  const {
+    items: stages,
+    fetch: fetchStages,
+    isLoading: stagesLoading,
+  } = useStagesStore();
 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [stageFilter, setStageFilter] = useState<string | "all">("all");
 
   // initial loads
   useEffect(() => {
     fetchUsers?.().catch(() => {});
-  }, [fetchUsers]);
+    fetchStages?.().catch(() => {});
+  }, [fetchUsers, fetchStages]);
+
+  // helpers
+  const getLeadStageId = useCallback((l: any) => {
+    return typeof l.stage === "string" ? l.stage : l.stage?._id;
+  }, []);
+
+  const stageMap = useMemo(() => {
+    const m = new Map<string, { _id: string; name: string; color?: string }>();
+    (stages || []).forEach((s: any) => m.set(String(s._id), s));
+    return m;
+  }, [stages]);
+
+  const findStageIdByName = useCallback(
+    (name: string) => {
+      const target = name.trim().toLowerCase();
+      const hit = (stages || []).find(
+        (s: any) =>
+          String(s.name || "")
+            .trim()
+            .toLowerCase() === target
+      );
+      return hit ? String(hit._id) : null;
+    },
+    [stages]
+  );
 
   // server-side fetch whenever filters or role change
   useEffect(() => {
@@ -76,19 +113,23 @@ export default function ReportsPage() {
     if (user.role === "business_developer") params.createdBy = user.id;
     if (user.role === "developer") params.assignedTo = user.id;
 
-    // date window (send ISO so backend can filter by createdAt)
-    if (dateFrom) params.from = new Date(dateFrom).toISOString();
+    // date window (Joi.date -> send ISO date strings)
+    if (dateFrom) {
+      const start = new Date(dateFrom);
+      start.setHours(0, 0, 0, 0);
+      params.dateFrom = start.toISOString();
+    }
     if (dateTo) {
-      // end of day inclusive
       const end = new Date(dateTo);
       end.setHours(23, 59, 59, 999);
-      params.to = end.toISOString();
+      params.dateTo = end.toISOString();
     }
 
-    if (statusFilter !== "all") params.status = statusFilter;
+    // stage filter
+    if (stageFilter !== "all") params.stage = stageFilter;
 
     fetchLeads(params).catch(() => {});
-  }, [user, dateFrom, dateTo, statusFilter, fetchLeads]);
+  }, [user, dateFrom, dateTo, stageFilter, fetchLeads]);
 
   // client-side guard (in case backend doesn’t support some filters yet)
   const filteredLeads = useMemo(() => {
@@ -110,36 +151,45 @@ export default function ReportsPage() {
         (l: any) => new Date(l.createdAt) <= new Date(dateTo + "T23:59:59.999")
       );
 
-    if (statusFilter !== "all")
-      list = list.filter((l: any) => l.status === statusFilter);
+    if (stageFilter !== "all")
+      list = list.filter((l: any) => String(getLeadStageId(l)) === stageFilter);
 
     return list;
-  }, [leads, user, dateFrom, dateTo, statusFilter]);
+  }, [leads, user, dateFrom, dateTo, stageFilter, getLeadStageId]);
 
-  const statusData = useMemo(() => {
-    const counts: Record<LeadStatus, number> = {
-      new: 0,
-      interview_scheduled: 0,
-      test_assigned: 0,
-      completed: 0,
-    };
+  // Stage-aware chart data
+  const stageData = useMemo(() => {
+    // Prefer known stages list; fallback to what appears in leads
+    const baseStages =
+      (stages && stages.length
+        ? stages.map((s: any) => ({
+            id: String(s._id),
+            name: String(s.name || ""),
+            color: s.color || "#4A171E",
+          }))
+        : Array.from(
+            new Set(filteredLeads.map((l: any) => String(getLeadStageId(l))))
+          ).map((id) => ({
+            id,
+            name: stageMap.get(id)?.name || "Unknown",
+            color: stageMap.get(id)?.color || "#4A171E",
+          }))) || [];
+
+    const counts: Record<string, number> = {};
     filteredLeads.forEach((l: any) => {
-      counts[l.status as LeadStatus] =
-        (counts[l.status as LeadStatus] || 0) + 1;
+      const sid = String(getLeadStageId(l) || "");
+      counts[sid] = (counts[sid] || 0) + 1;
     });
 
-    return [
-      { name: "New", value: counts.new, color: "#E2B144" },
-      {
-        name: "Interview Scheduled",
-        value: counts.interview_scheduled,
-        color: "#3B82F6",
-      },
-      { name: "Test Assigned", value: counts.test_assigned, color: "#F59E0B" },
-      { name: "Completed", value: counts.completed, color: "#10B981" },
-    ];
-  }, [filteredLeads]);
+    return baseStages.map((s) => ({
+      id: s.id,
+      name: s.name,
+      value: counts[s.id] || 0,
+      color: s.color,
+    }));
+  }, [filteredLeads, stages, stageMap, getLeadStageId]);
 
+  // Source pie data stays the same
   function sourceColor(src: LeadSource) {
     return (
       {
@@ -161,7 +211,7 @@ export default function ReportsPage() {
       other: 0,
     };
     filteredLeads.forEach((l: any) => {
-      counts[l.source as LeadSource]++;
+      counts[(l.source as LeadSource) || "other"]++;
     });
     return (Object.keys(counts) as LeadSource[]).map((k) => ({
       name: k.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -170,10 +220,35 @@ export default function ReportsPage() {
     }));
   }, [filteredLeads]);
 
+  // Stage semantics for stats
+  const completedStageId = findStageIdByName("completed");
+  const newStageId = findStageIdByName("new");
+
+  const newCount = useMemo(
+    () =>
+      filteredLeads.filter(
+        (l: any) => newStageId && String(getLeadStageId(l)) === newStageId
+      ).length,
+    [filteredLeads, newStageId, getLeadStageId]
+  );
+
+  const completedCount = useMemo(
+    () =>
+      filteredLeads.filter(
+        (l: any) =>
+          completedStageId && String(getLeadStageId(l)) === completedStageId
+      ).length,
+    [filteredLeads, completedStageId, getLeadStageId]
+  );
+
+  const inProgressCount = Math.max(
+    0,
+    filteredLeads.length - newCount - completedCount
+  );
+
+  // User performance (by createdBy), using stage semantics
   const userPerformance = useMemo(() => {
     if (!user) return [];
-    console.log("Calculating user performance...");
-    console.log("Users:", users);
     const reps = (users || []).filter(
       (u: any) => u.role === "business_developer" || u.role === "admin"
     );
@@ -181,24 +256,37 @@ export default function ReportsPage() {
     const rows = reps.map((u: any) => {
       const mine = filteredLeads.filter((l: any) => l.createdBy?._id === u._id);
       const total = mine.length;
-      const newCount = mine.filter((l: any) => l.status === "new").length;
-      const completed = mine.filter(
-        (l: any) => l.status === "completed"
+      const newLeads = mine.filter(
+        (l: any) => newStageId && String(getLeadStageId(l)) === newStageId
       ).length;
-      const rate = total ? Math.round((completed / total) * 100) : 0;
+      const completedLeads = mine.filter(
+        (l: any) =>
+          completedStageId && String(getLeadStageId(l)) === completedStageId
+      ).length;
+      const conversionRate = total
+        ? Math.round((completedLeads / total) * 100)
+        : 0;
+
       return {
         id: u._id,
         name: u.username,
         role: u.role,
         totalLeads: total,
-        newLeads: newCount,
-        completedLeads: completed,
-        conversionRate: rate,
+        newLeads,
+        completedLeads,
+        conversionRate,
       };
     });
 
     return rows.sort((a, b) => b.totalLeads - a.totalLeads);
-  }, [users, filteredLeads, user]);
+  }, [
+    users,
+    filteredLeads,
+    user,
+    newStageId,
+    completedStageId,
+    getLeadStageId,
+  ]);
 
   const exportToCSV = () => {
     const csvData = [
@@ -206,7 +294,7 @@ export default function ReportsPage() {
         "Client Name",
         "Job Description",
         "Source",
-        "Status",
+        "Stage",
         "Assigned To",
         "Created By",
         "Created Date",
@@ -215,7 +303,7 @@ export default function ReportsPage() {
         l.clientName,
         l.jobDescription?.replace(/\n/g, " ") || "",
         l.source,
-        l.status,
+        stageMap.get(String(getLeadStageId(l)))?.name || "",
         l.assignedTo?.username || "Unassigned",
         l.createdBy?.username || "",
         new Date(l.createdAt).toLocaleDateString(),
@@ -223,7 +311,7 @@ export default function ReportsPage() {
     ];
     const csvContent = csvData
       .map((row) =>
-        row.map((f) => `"${String(f).replace(/"/g, '""')}"`).join(",")
+        row.map((f) => `"${String(f ?? "").replace(/"/g, '""')}"`).join(",")
       )
       .join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -245,18 +333,18 @@ export default function ReportsPage() {
     );
   }
 
-  // if (!hasPermission({ action: "read", resource: "report" })) {
-  //   return (
-  //     <MainLayout>
-  //       <div className="text-center py-12">
-  //         <BarChart3 className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-  //         <p className="text-gray-500">
-  //           Access denied. Reports are only available to Admin and BD roles.
-  //         </p>
-  //       </div>
-  //     </MainLayout>
-  //   );
-  // }
+  if (!hasPermission({ action: "read", resource: "reports" })) {
+    return (
+      <MainLayout>
+        <div className="text-center py-12">
+          <BarChart3 className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+          <p className="text-gray-500">
+            Access denied. Reports are only available to Admin and BD roles.
+          </p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -307,36 +395,32 @@ export default function ReportsPage() {
                   onChange={(e) => setDateTo(e.target.value)}
                 />
               </div>
+
+              {/* Stage filter (dynamic) */}
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="stage">Stage</Label>
                 <Select
-                  value={statusFilter}
-                  onValueChange={(v) =>
-                    setStatusFilter(v as LeadStatus | "all")
-                  }
+                  value={stageFilter}
+                  onValueChange={(v) => setStageFilter(v as string | "all")}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="All statuses" />
+                    <SelectValue placeholder="All stages" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="interview_scheduled">
-                      Interview Scheduled
-                    </SelectItem>
-                    <SelectItem value="test_assigned">Test Assigned</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="all">All Stages</SelectItem>
+                    {(stages || []).map((s: any) => (
+                      <SelectItem key={String(s._id)} value={String(s._id)}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="flex items-end">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setDateFrom("");
-                    setDateTo("");
-                    setStatusFilter("all");
-                  }}
+                  onClick={() => resetFilters()}
                   className="w-full border-validiz-brown text-validiz-brown hover:bg-validiz-brown hover:text-white"
                 >
                   Clear Filters
@@ -357,36 +441,25 @@ export default function ReportsPage() {
           />
           <StatCard
             title="Completed"
-            value={
-              filteredLeads.filter((l: any) => l.status === "completed").length
-            }
+            value={completedCount}
             icon={<Users className="h-4 w-4 text-green-600" />}
             subtitle={`${
               filteredLeads.length > 0
-                ? Math.round(
-                    (filteredLeads.filter((l: any) => l.status === "completed")
-                      .length /
-                      filteredLeads.length) *
-                      100
-                  )
+                ? Math.round((completedCount / filteredLeads.length) * 100)
                 : 0
             }% conversion rate`}
             valueClass="text-green-600"
           />
           <StatCard
             title="In Progress"
-            value={
-              filteredLeads.filter((l: any) =>
-                ["interview_scheduled", "test_assigned"].includes(l.status)
-              ).length
-            }
+            value={inProgressCount}
             icon={<BarChart3 className="h-4 w-4 text-blue-600" />}
             subtitle="Active opportunities"
             valueClass="text-blue-600"
           />
           <StatCard
             title="New Leads"
-            value={filteredLeads.filter((l: any) => l.status === "new").length}
+            value={newCount}
             icon={<PieChartIcon className="h-4 w-4 text-validiz-mustard" />}
             subtitle="Awaiting action"
             valueClass="text-validiz-mustard"
@@ -398,17 +471,21 @@ export default function ReportsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-validiz-brown">
-                Leads by Status
+                Leads by Stage
               </CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={statusData}>
+                <BarChart data={stageData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#4A171E" />
+                  <Bar dataKey="value">
+                    {stageData.map((s, i) => (
+                      <Cell key={i} fill={s.color || "#4A171E"} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -518,7 +595,9 @@ export default function ReportsPage() {
                         colSpan={6}
                         className="text-center text-muted-foreground"
                       >
-                        {isLoading ? "Loading…" : "No data for current filters"}
+                        {isLoading || stagesLoading
+                          ? "Loading…"
+                          : "No data for current filters"}
                       </TableCell>
                     </TableRow>
                   )}

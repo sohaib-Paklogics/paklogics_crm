@@ -11,14 +11,13 @@ export const create = asyncHandler(async (req, res) => {
 
 export const list = asyncHandler(async (req, res) => {
   const q = await v.listQuery.validateAsync(req.query);
-  const result = await service.list(req.params.id, q);
+  const result = await service.list(req.params.id, q, req.user); // ⬅️ pass user
   res.json(ApiResponse.success(result, "Events fetched"));
 });
 
 export const listAll = asyncHandler(async (req, res) => {
-  console.log("listAll called");
   const q = await v.listQuery.validateAsync(req.query);
-  const result = await service.listAll(q);
+  const result = await service.listAll(q, req.user); // ⬅️ pass user
   res.json(ApiResponse.success(result, "All events fetched"));
 });
 

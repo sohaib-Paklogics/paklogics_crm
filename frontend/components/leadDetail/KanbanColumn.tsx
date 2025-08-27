@@ -10,6 +10,7 @@ import { StageActions } from "@/components/StageActions";
 import ButtonLoader from "@/components/common/ButtonLoader";
 import Link from "next/link";
 import LeadCard from "./LeadCard";
+import useAuthStore from "@/stores/auth-store";
 
 /** React 18 StrictMode helper for react-beautiful-dnd */
 function StrictModeDroppable(props: DroppableProps) {
@@ -59,6 +60,8 @@ const KanbanColumn = ({
   ) => void;
   highlightLeadId?: string | null;
 }) => {
+  const { user } = useAuthStore();
+
   // outer column ref (for horizontal positioning)
   const outerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -100,7 +103,9 @@ const KanbanColumn = ({
           <Badge variant="secondary" className="bg-gray-100 text-gray-600">
             {isLoading ? <ButtonLoader color="border-black" /> : leads.length}
           </Badge>
-          <StageActions stage={stage} actions={stageActions} />
+          {user?.role !== "developer" && (
+            <StageActions stage={stage} actions={stageActions} />
+          )}
         </div>
       </div>
 

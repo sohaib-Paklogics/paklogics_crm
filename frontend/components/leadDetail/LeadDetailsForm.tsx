@@ -13,9 +13,10 @@ import {
 } from "@/components/ui/select";
 import { Lead, LeadSource } from "@/types/lead";
 import { useStagesStore } from "@/stores/stages.store";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useUserStore } from "@/stores/user-store";
 import { AdminUser } from "@/types/types";
+import useAuthStore from "@/stores/auth-store";
 
 const LeadDetailsForm = ({
   isEditing,
@@ -29,13 +30,52 @@ const LeadDetailsForm = ({
   onChange: (data: Partial<Lead>) => void;
 }) => {
   const set = (k: keyof Lead, v: any) => onChange({ ...editData, [k]: v });
+
   const { items: stageList, fetch: stageFetch } = useStagesStore();
   const { users: userList, fetchUsers } = useUserStore();
+  const { user } = useAuthStore();
 
+  const isAdmin =
+    user?.role === "admin" || user?.role === "superadmin" || false;
+
+  // Robust self id/name (your auth sometimes uses id, sometimes _id)
+  const selfId = (user as any)?._id ?? (user as any)?.id ?? null;
+  const selfName = (user as any)?.username ?? (user as any)?.name ?? "You";
+
+  // fetch stages always; fetch users only for admin
   useEffect(() => {
     stageFetch();
-    fetchUsers();
-  }, [stageFetch, fetchUsers]);
+    if (isAdmin) fetchUsers?.();
+  }, [stageFetch, fetchUsers, isAdmin]);
+
+  // Normalize assigned value from lead/editData (id string)
+  const assignedValueFromState = useMemo(() => {
+    const edited = (editData as any)?.assignedTo;
+    if (typeof edited === "string") return edited;
+    if (edited && typeof edited === "object") return edited._id;
+
+    const fromLead = (lead as any)?.assignedTo;
+    if (typeof fromLead === "string") return fromLead;
+    if (fromLead && typeof fromLead === "object") return fromLead._id;
+
+    return "";
+  }, [editData, lead]);
+
+  // For non-admins: force assign to self when editing, once selfId is known
+  useEffect(() => {
+    if (!isEditing || isAdmin) return;
+    if (!selfId) return; // wait until we have a real id
+    if (assignedValueFromState !== String(selfId)) {
+      set("assignedTo" as any, String(selfId));
+    }
+  }, [isEditing, isAdmin, selfId, assignedValueFromState]);
+
+  // Value shown in the Select
+  const assignedSelectValue = isAdmin
+    ? assignedValueFromState
+    : selfId
+    ? String(selfId)
+    : ""; // placeholder shown until selfId exists
 
   return (
     <Card>
@@ -88,23 +128,23 @@ const LeadDetailsForm = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Stage */}
           <div className="space-y-2">
             <Label htmlFor="stage">Stage</Label>
-
             <Select
               value={
                 isEditing
                   ? (typeof editData.stage === "object"
-                      ? editData.stage?._id
-                      : editData.stage) ??
+                      ? (editData.stage as any)?._id
+                      : (editData.stage as any)) ??
                     (typeof lead?.stage === "object"
-                      ? lead?.stage?._id
+                      ? (lead?.stage as any)?._id
                       : (lead?.stage as any))
                   : typeof lead?.stage === "object"
-                  ? lead?.stage?._id
+                  ? (lead?.stage as any)?._id
                   : (lead?.stage as any)
               }
-              onValueChange={(v) => set("stage", v)} // << set the STAGE field, not status
+              onValueChange={(v) => set("stage", v)}
               disabled={!isEditing}
             >
               <SelectTrigger id="stage">
@@ -120,38 +160,45 @@ const LeadDetailsForm = ({
             </Select>
           </div>
 
+          {/* Assigned To */}
           <div className="space-y-2">
             <Label htmlFor="assignedTo">Assigned To</Label>
             <Select
-              value={
-                isEditing
-                  ? (typeof (editData as any).assignedTo === "string"
-                      ? (editData as any).assignedTo
-                      : (editData as any).assignedTo?._id) ??
-                    lead.assignedTo?._id ??
-                    ""
-                  : lead.assignedTo?._id ?? ""
-              }
+              value={assignedSelectValue}
               onValueChange={(v) =>
                 onChange({ ...editData, assignedTo: v } as any)
               }
-              disabled={!isEditing}
+              // Only admins can change; non-admins see themselves
+              disabled={!isEditing || !isAdmin || !selfId}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Developer" />
               </SelectTrigger>
               <SelectContent>
-                {userList
-                  .filter((user: AdminUser) => user.role === "developer") // 👈 only developers
-                  .map((user: AdminUser) => (
-                    <SelectItem
-                      className="capitalize"
-                      key={user._id}
-                      value={user._id}
-                    >
-                      {user.username} ({user.role})
-                    </SelectItem>
-                  ))}
+                {isAdmin ? (
+                  userList
+                    .filter((u: AdminUser) => u.role === "developer" && !!u._id)
+                    .map((u: AdminUser) => (
+                      <SelectItem
+                        className="capitalize"
+                        key={String(u._id)}
+                        value={String(u._id)}
+                      >
+                        {u.username} ({u.role})
+                      </SelectItem>
+                    ))
+                ) : selfId ? (
+                  // Non-admin: exactly one option with a NON-empty value
+                  <SelectItem value={String(selfId)}>
+                    {selfName} (you)
+                  </SelectItem>
+                ) : (
+                  // If selfId not ready yet, render a disabled placeholder
+                  // NOTE: value is NON-empty to satisfy the Select.Item rule
+                  <SelectItem value="__me_loading__" disabled>
+                    Loading your profile…
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -162,7 +209,7 @@ const LeadDetailsForm = ({
           <Textarea
             id="notes"
             rows={3}
-            value={isEditing ? editData.notes ?? "" : lead.notes ?? ""}
+            value={isEditing ? editData.notes ?? "" : (lead.notes as any) ?? ""}
             onChange={(e) => set("notes", e.target.value)}
             disabled={!isEditing}
             placeholder="Optional notes about this lead..."

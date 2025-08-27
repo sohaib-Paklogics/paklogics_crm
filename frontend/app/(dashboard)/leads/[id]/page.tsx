@@ -116,13 +116,21 @@ export default function LeadDetailPage() {
           onValueChange={(v) => setActiveTab(v as any)}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList
+            className={`grid w-full ${
+              user?.role !== "developer" ? "grid-cols-6" : "grid-cols-3"
+            }`}
+          >
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="attachments">Attachments</TabsTrigger>
             <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
-            <TabsTrigger value="tests">Tests</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
+            {user?.role !== "developer" && (
+              <>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
+                <TabsTrigger value="tests">Tests</TabsTrigger>
+                <TabsTrigger value="events">Events</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="details" className="space-y-6">
@@ -143,17 +151,21 @@ export default function LeadDetailPage() {
             <ChatPanel leadId={lead._id} />
           </TabsContent>
 
-          <TabsContent value="notes">
-            <NotesPanel leadId={lead._id} />
-          </TabsContent>
+          {user?.role !== "developer" && (
+            <>
+              <TabsContent value="notes">
+                <NotesPanel leadId={lead._id} />
+              </TabsContent>
 
-          <TabsContent value="tests">
-            <TestsPanel leadId={lead._id} />
-          </TabsContent>
+              <TabsContent value="tests">
+                <TestsPanel leadId={lead._id} />
+              </TabsContent>
 
-          <TabsContent value="events">
-            <EventsPanel leadId={lead._id} />
-          </TabsContent>
+              <TabsContent value="events">
+                <EventsPanel leadId={lead._id} />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </div>
     </MainLayout>

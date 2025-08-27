@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import type { Lead, Stage } from "@/types/lead";
+import useAuthStore from "@/stores/auth-store";
 
 const LeadCard = ({
   lead,
@@ -30,6 +31,8 @@ const LeadCard = ({
   allStages: Stage[];
   onChangeStatus: (lead: Lead, toStageId: string) => Promise<void>;
 }) => {
+  const { user } = useAuthStore();
+
   const whileDragging = (isDragging: boolean) =>
     `mb-3 ${isDragging ? "rotate-2" : ""}`;
   const hoverScale = (isDragging: boolean) =>
@@ -71,38 +74,40 @@ const LeadCard = ({
                     </p>
                   </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="p-1 rounded hover:bg-gray-100"
-                        aria-label="Lead actions"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreVertical className="h-4 w-4 text-gray-500" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
-                      <DropdownMenuLabel>Move to…</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {allStages.map((s) => (
-                        <DropdownMenuItem
-                          key={s._id}
-                          disabled={String(s._id) === stageId}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onChangeStatus(lead, String(s._id));
-                          }}
-                          className="flex items-center justify-between"
+                  {user?.role !== "developer" && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="p-1 rounded hover:bg-gray-100"
+                          aria-label="Lead actions"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <span>{s.name}</span>
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ background: s.color }}
-                          />
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          <MoreVertical className="h-4 w-4 text-gray-500" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuLabel>Move to…</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {allStages.map((s) => (
+                          <DropdownMenuItem
+                            key={s._id}
+                            disabled={String(s._id) === stageId}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onChangeStatus(lead, String(s._id));
+                            }}
+                            className="flex items-center justify-between"
+                          >
+                            <span>{s.name}</span>
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ background: s.color }}
+                            />
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between">

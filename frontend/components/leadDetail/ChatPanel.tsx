@@ -139,7 +139,7 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
       await saveEdit();
     }
   };
-
+  console.log("render chat panel", messages);
   return (
     <Card>
       <CardHeader>
@@ -156,7 +156,9 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
             {messages.map((m) => {
               const sender =
                 typeof m.senderId === "string"
-                  ? { username: m.senderId }
+                  ? m.senderId === me?.id
+                    ? { username: me?.username }
+                    : { username: m.senderId } // fallback if not me
                   : (m.senderId as any);
 
               const isEditingThis = editingId === m._id;
@@ -196,18 +198,16 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
                             Edit
                           </Button>
 
-                          {remove && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-destructive"
-                              onClick={() => handleDelete(m._id)}
-                              title="Delete message"
-                            >
-                              <Trash className="h-3.5 w-3.5 mr-1" />
-                              Delete
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-destructive"
+                            onClick={() => handleDelete(m._id)}
+                            title="Delete message"
+                          >
+                            <Trash className="h-3.5 w-3.5 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       )}
                     </div>

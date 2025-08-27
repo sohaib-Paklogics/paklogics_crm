@@ -8,15 +8,12 @@ import type { Lead, LeadFilters, PaginatedResponse } from "@/types/lead";
 const DEFAULT_FILTERS: LeadFilters = {
   page: 1,
   limit: 10,
-  stage: "all", // pipeline stage filter
+  stage: "all",
   order: "desc",
   sort: "createdAt",
-  // optional common filters you may use elsewhere; safe to leave undefined:
   search: "",
-  // assignedTo: undefined,
-  // createdBy: undefined,
-  // dateFrom: undefined,
-  // dateTo: undefined,
+  dateFrom: null,
+  dateTo: null,
 };
 
 interface LeadsState {
@@ -151,6 +148,7 @@ export const useLeadsStore = create<LeadsState>((set, get) => ({
 
   // 3) Reset + refetch with the exact defaults
   reset: async () => {
+    console.log("Resetting filters to defaults", DEFAULT_FILTERS);
     set({
       items: [],
       pagination: null,

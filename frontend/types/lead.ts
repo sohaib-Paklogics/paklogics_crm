@@ -76,18 +76,25 @@ export interface ApiResponse<T = any> {
   statusCode?: number;
 }
 
+export type ISODateOnly = `${number}-${number}-${number}`;
+export type ISODateTime = `${number}-${number}-${number}T${string}`;
+export type DateFilterValue = Date | ISODateOnly | ISODateTime | null;
+
 export type LeadFilters = {
   page?: number;
   limit?: number;
   search?: string;
-  status?: "all" | LeadStage;
-  stage?: string;
+
+  status?: never;
+  stage?: "all" | string;
 
   source?: LeadSource;
   assignedTo?: string;
   createdBy?: string;
-  dateFrom?: string;
-  dateTo?: string;
+
+  dateFrom?: DateFilterValue;
+  dateTo?: DateFilterValue;
+
   sort?: "createdAt" | "updatedAt";
   order?: "asc" | "desc";
 };
