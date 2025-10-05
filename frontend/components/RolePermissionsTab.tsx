@@ -251,7 +251,7 @@ export default function RolePermissionsTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b">
+                <tr className="border-b bg-gray-50">
                   <th className="text-left py-3 px-4 font-semibold text-validiz-brown">
                     Module
                   </th>

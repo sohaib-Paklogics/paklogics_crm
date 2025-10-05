@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useRouter } from "next/navigation";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 
 export const Navbar = () => {
   const { toggleSidebar } = useSidebar();
@@ -37,11 +37,11 @@ export const Navbar = () => {
           </Button>
 
           {/* Page Title and Breadcrumb */}
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
             <span className="text-gray-400">/</span>
             <span className="text-sm text-gray-500">Overview</span>
-          </div>
+          </div> */}
         </div>
 
         {/* Right side - User Menu */}
@@ -52,18 +52,18 @@ export const Navbar = () => {
                 variant="ghost"
                 className="flex items-center gap-2 hover:bg-gray-50"
               >
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
                   <span className="text-sm font-medium text-primary">
                     {initials}
                   </span>
                 </div>
                 <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-gray-900 capitalize">
                     {user?.username || "Admin"}
                   </p>
-                  <p className="text-xs text-gray-500 capitalize">
+                  {/* <p className="text-xs text-gray-500 capitalize">
                     {user?.role || "Admin"}
-                  </p>
+                  </p> */}
                 </div>
                 <ChevronDown className="h-4 w-4 text-gray-400" />
               </Button>
@@ -93,7 +93,7 @@ export const Navbar = () => {
                 }}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign out
+                Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

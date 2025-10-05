@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMessagesStore } from "@/stores/messages.store";
 import { useUserStore } from "@/stores/user-store";
 import type { ChatMessage } from "@/types/message";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 
 type WithMaybe<T> = T | null | undefined;
 
@@ -139,7 +139,6 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
       await saveEdit();
     }
   };
-  console.log("render chat panel", messages);
   return (
     <Card>
       <CardHeader>

@@ -17,13 +17,18 @@ import {
   Menu,
   X,
   Kanban,
-  Home,
+  LayoutDashboard,
 } from "lucide-react";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 import Image from "next/image";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home, permission: null },
+  {
+    name: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    permission: null,
+  },
   {
     name: "Kanban",
     href: "/kanban",
@@ -83,15 +88,15 @@ export function Sidebar() {
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-validiz-brown text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 w-64 border-r border-neutral-200 text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col ">
           {/* Logo */}
-          <div className="flex items-center justify-center h-24 px-4 border-b border-white/10">
+          <div className="flex items-center justify-center h-32 px-4 border-b border-white/10">
             <Image
-              src="/assets/logo.png"
+              src="/assets/logo-validiz.png"
               alt="Validiz Logo"
               width={200}
               height={75}
@@ -109,10 +114,10 @@ export function Sidebar() {
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                      "flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors",
                       isActive
-                        ? "bg-validiz-mustard text-validiz-brown"
-                        : "text-white hover:bg-white/10 hover:text-validiz-mustard"
+                        ? "bg-validiz-mustard text-validiz-gray "
+                        : "text-validiz-gray hover:bg-neutral-100 "
                     )}
                     onClick={() => setIsOpen(false)}
                   >
@@ -124,29 +129,33 @@ export function Sidebar() {
             </nav>
           </ScrollArea>
 
-          <Separator className="bg-white/10" />
-
-          {/* User section */}
+          <div className="px-3">
+            <Separator className="bg-[#555555]/30 " />
+          </div>
           <div className="p-4 space-y-2">
             <Link
               href="/profile"
-              className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-white hover:bg-white/10 hover:text-validiz-mustard transition-colors"
               onClick={() => setIsOpen(false)}
+              className={cn(
+                "flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors",
+                pathname === "/profile"
+                  ? "bg-validiz-mustard text-white"
+                  : "text-validiz-gray hover:bg-neutral-100 "
+              )}
             >
               <User className="mr-3 h-5 w-5" />
               Profile
             </Link>
+
+            {/* Logout */}
             <Button
               variant="ghost"
-              className="w-full justify-start text-white hover:bg-white/10 hover:text-validiz-mustard"
               onClick={handleLogout}
+              className="w-full justify-start rounded-md px-3 py-2 text-sm font-medium text-[#555555] hover:bg-neutral-100 "
             >
               <LogOut className="mr-3 h-5 w-5" />
               Logout
             </Button>
-            <div className="px-3 py-2 text-xs text-white/70">
-              {user.username} ({user.role})
-            </div>
           </div>
         </div>
       </div>

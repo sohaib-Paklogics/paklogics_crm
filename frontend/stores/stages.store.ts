@@ -1,4 +1,3 @@
-// src/stores/stages.store.ts
 import { create } from "zustand";
 import { callApi } from "@/lib/callApi";
 import { stageService } from "@/services/stage.service";
@@ -6,27 +5,30 @@ import type { Stage } from "@/types/lead";
 
 type InsertAdjacentOpts = {
   where: "before" | "after";
-  pivotId: string; // stage id to insert next to
-  name: string; // new stage name
-  color?: string; // optional color
-  isDefault?: boolean; // optional
-  active?: boolean; // optional
+  pivotId: string;
+  name: string;
+  color?: string;
+  isDefault?: boolean;
+  active?: boolean;
 };
 
 type StageState = {
   items: Stage[];
-  isLoading: boolean;
+
+  // granular loading
+  fetchLoading: boolean;
+  insertAdjacentLoadingFor: string | null; // pivotId
+  crudLoading: boolean;
+
   error: string | null;
 
   fetch: () => Promise<void>;
 
-  // CRUD
   create: (p: Partial<Stage>) => Promise<Stage | null>;
   update: (id: string, p: Partial<Stage>) => Promise<Stage | null>;
   remove: (id: string, targetStageId?: string) => Promise<boolean>;
   reorder: (orderIds: string[]) => Promise<void>;
 
-  // Adjacent insert (server calculates order)
   insertAdjacent: (opts: InsertAdjacentOpts) => Promise<Stage | null>;
   addBefore: (
     pivotId: string,
@@ -45,60 +47,71 @@ const sortByOrder = (arr: Stage[]) =>
 
 export const useStagesStore = create<StageState>((set, get) => ({
   items: [],
-  isLoading: false,
+  fetchLoading: false,
+  insertAdjacentLoadingFor: null,
+  crudLoading: false,
   error: null,
 
   fetch: async () => {
-    set({ isLoading: true, error: null });
+    set({ fetchLoading: true, error: null });
 
     const res = await callApi(() => stageService.list(), {
       showError: true,
       showSuccess: false,
     });
 
-    // Support both {stages:[]} and [] responses
     const payload = (res?.data as any) ?? res;
     const stages = Array.isArray(payload) ? payload : payload?.stages ?? [];
 
     set({
       items: sortByOrder(stages),
-      isLoading: false,
+      fetchLoading: false,
     });
   },
 
   create: async (p) => {
+    set({ crudLoading: true });
     const res = await callApi(() => stageService.create(p), {});
     if (res?.success) {
       await get().fetch();
+      set({ crudLoading: false });
       return res.data as Stage;
     }
+    set({ crudLoading: false });
     return null;
   },
 
   update: async (id, p) => {
+    set({ crudLoading: true });
     const res = await callApi(() => stageService.update(id, p), {});
     if (res?.success) {
       await get().fetch();
+      set({ crudLoading: false });
       return res.data as Stage;
     }
+    set({ crudLoading: false });
     return null;
   },
 
   remove: async (id, targetStageId) => {
+    set({ crudLoading: true });
     const res = await callApi(() => stageService.delete(id, targetStageId), {});
     if (res?.success) {
       await get().fetch();
+      set({ crudLoading: false });
       return true;
     }
+    set({ crudLoading: false });
     return false;
   },
 
   reorder: async (orderIds) => {
+    set({ crudLoading: true });
     await callApi(() => stageService.reorder(orderIds), {});
     await get().fetch();
+    set({ crudLoading: false });
   },
 
-  // ----- Adjacent insert (server decides order) -----
   insertAdjacent: async ({
     where,
     pivotId,
@@ -107,7 +120,10 @@ export const useStagesStore = create<StageState>((set, get) => ({
     isDefault,
     active,
   }) => {
-    // If we have no stages at all, just create a root stage instead
+    // show loader only for the pivot being acted on
+    set({ insertAdjacentLoadingFor: pivotId });
+
+    // if no stages at all, create root
     if (!get().items.length) {
       const res = await callApi(
         () =>
@@ -126,8 +142,10 @@ export const useStagesStore = create<StageState>((set, get) => ({
       );
       if (res?.success) {
         await get().fetch();
+        set({ insertAdjacentLoadingFor: null });
         return res.data as Stage;
       }
+      set({ insertAdjacentLoadingFor: null });
       return null;
     }
 
@@ -145,15 +163,16 @@ export const useStagesStore = create<StageState>((set, get) => ({
     );
 
     if (res?.success) {
-      await get().fetch(); // ensure UI reflects server-computed order
+      await get().fetch();
+      set({ insertAdjacentLoadingFor: null });
       return res.data as Stage;
     }
+    set({ insertAdjacentLoadingFor: null });
     return null;
   },
 
   addBefore: async (pivotId, name, color) =>
     get().insertAdjacent({ where: "before", pivotId, name, color }),
-
   addAfter: async (pivotId, name, color) =>
     get().insertAdjacent({ where: "after", pivotId, name, color }),
 }));

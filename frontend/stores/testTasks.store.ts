@@ -106,8 +106,6 @@ export const useTestTasksStore = create<State>((set, get) => ({
   },
 
   create: async (leadId, payload, files) => {
-    console.log("Creating test task with files:", files);
-    console.log("Creating test task with payload:", payload);
     const res = await callApi(
       () =>
         files?.length

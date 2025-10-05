@@ -50,9 +50,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUserStore } from "@/stores/user-store";
 
 export function UserManagementTab() {
-  const { users, loading, fetchUsers, addUser, updateUser, deleteUser } =
-    useUserStore();
-
+  const { users, loading, fetchUsers, addUser, updateUser, deleteUser } = useUserStore();
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -61,7 +59,6 @@ export function UserManagementTab() {
     fetchUsers().catch(console.error);
   }, [fetchUsers]);
 
-  // Switch resolver depending on create vs edit
   const resolver = useMemo(
     () => zodResolver(editingUser ? editUserSchema : createUserSchema),
     [editingUser]
@@ -168,27 +165,29 @@ export function UserManagementTab() {
   return (
     <>
       <Card>
-        <CardHeader className="flex justify-between items-center">
+        <CardHeader className="flex ">
           <div>
-            <CardTitle className="text-validiz-brown">Users</CardTitle>
+            <CardTitle className="text-validiz-brown mb-2">
+              User Management
+            </CardTitle>
             <p className="text-sm text-gray-600">
-              Manage users and their roles
+              Manage team members and their access levels{" "}
             </p>
           </div>
-          <Button
+          {/* <Button
             onClick={openCreate}
             className="bg-validiz-brown hover:bg-validiz-brown/90"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add User
-          </Button>
+          </Button> */}
         </CardHeader>
 
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-gray-50">
                   <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
@@ -214,7 +213,19 @@ export function UserManagementTab() {
                 ) : (
                   users.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell>{user.username}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-validiz-mustard text-white text-sm font-semibold shadow-md">
+                            {user.username
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </div>
+                          <span>{user.username}</span>
+                        </div>
+                      </TableCell>{" "}
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <Badge
@@ -224,7 +235,16 @@ export function UserManagementTab() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{user.status}</Badge>
+                        <Badge
+                          variant="outline"
+                          className={
+                            user.status === "active"
+                              ? "border-[#09BF31] text-[#09BF31] bg-[#09BF31]/10"
+                              : ""
+                          }
+                        >
+                          {user.status}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {user.createdAt

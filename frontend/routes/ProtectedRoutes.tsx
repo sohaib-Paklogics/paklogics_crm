@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import PageLoader from "@/components/common/PageLoader";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -31,6 +31,10 @@ const ProtectedRoute = ({
     }
     // ✅ Authenticated → redirect away from login
     else if (pathname === "/login") {
+      router.replace("/dashboard");
+    }
+    // ✅ Authenticated → redirect away from landing page
+    else if (pathname === "/" || pathname === "/landingMain") {
       router.replace("/dashboard");
     }
     // ✅ If role check fails

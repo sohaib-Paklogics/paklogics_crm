@@ -1,29 +1,18 @@
 "use client";
 
 import { Draggable } from "react-beautiful-dnd";
-import { MoreVertical, User } from "lucide-react";
-
+import { MessageCircleMore, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
 import type { Lead, Stage } from "@/types/lead";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
+import { cn } from "@/lib/utils";
 
 const LeadCard = ({
   lead,
   index,
   canDragDrop,
-  allStages,
-  onChangeStatus,
 }: {
   lead: Lead;
   index: number;
@@ -47,7 +36,27 @@ const LeadCard = ({
   const stageId = String(
     typeof lead.stage === "string" ? lead.stage : lead.stage?._id
   );
+  const AVATAR_BG = [
+    "bg-[#2563EB]",
+    "bg-emerald-500",
+    "bg-amber-500",
+    "bg-fuchsia-500",
+    "bg-sky-500",
+    "bg-rose-500",
+    "bg-lime-500",
+  ];
 
+  function initial(name?: string) {
+    return name?.trim()?.[0]?.toUpperCase() ?? "U";
+  }
+
+  function bgFromName(name?: string) {
+    if (!name) return "bg-neutral-400";
+    let hash = 0;
+    for (let i = 0; i < name.length; i++)
+      hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    return AVATAR_BG[hash % AVATAR_BG.length];
+  }
   return (
     <Draggable
       draggableId={String(lead._id)}
@@ -64,81 +73,56 @@ const LeadCard = ({
           <Card className={hoverScale(snapshot.isDragging)}>
             <CardContent className="p-4">
               <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
+                <Badge
+                  variant="outline"
+                  className="text-xs text-primary capitalize bg-gray-50"
+                >
+                  {lead.source === "job_board"
+                    ? "Job Board"
+                    : lead.source.replace("_", " ")}
+                </Badge>
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h4 className="font-semibold text-validiz-brown text-sm">
+                    <h4 className="font-semibold  text-md">
                       {lead.clientName}
                     </h4>
-                    <p className="text-xs text-gray-600 line-clamp-2 mt-1">
+                    <p className="text-md text-gray-600 line-clamp-2 mt-1">
                       {lead.jobDescription}
                     </p>
                   </div>
-
-                  {user?.role !== "developer" && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          className="p-1 rounded hover:bg-gray-100"
-                          aria-label="Lead actions"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="h-4 w-4 text-gray-500" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-52">
-                        <DropdownMenuLabel>Move to…</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {allStages.map((s) => (
-                          <DropdownMenuItem
-                            key={s._id}
-                            disabled={String(s._id) === stageId}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onChangeStatus(lead, String(s._id));
-                            }}
-                            className="flex items-center justify-between"
-                          >
-                            <span>{s.name}</span>
-                            <span
-                              className="w-2 h-2 rounded-full"
-                              style={{ background: s.color }}
-                            />
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs capitalize">
-                    {lead.source === "job_board"
-                      ? "Job Board"
-                      : lead.source.replace("_", " ")}
-                  </Badge>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-2">
                     {assigned ? (
-                      <div className="flex items-center space-x-1">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs bg-validiz-brown text-white">
-                            {assigned.username?.charAt(0)?.toUpperCase() ?? "U"}
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-7 w-7 ring-1 ring-black/5">
+                          {/* No AvatarImage — always initial */}
+                          <AvatarFallback
+                            className={cn(
+                              "h-full w-full rounded-full text-[11px] font-semibold text-white flex items-center justify-center",
+                              bgFromName(assigned.username)
+                            )}
+                          >
+                            {initial(assigned.username)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-xs text-gray-600 capitalize">
-                          {assigned.username}
-                        </span>
                       </div>
                     ) : (
-                      <div className="flex items-center space-x-1 text-gray-400">
-                        <User className="h-4 w-4" />
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <div className="h-7 w-7 rounded-full bg-neutral-300 text-white text-[11px] font-semibold flex items-center justify-center">
+                          U
+                        </div>
                         <span className="text-xs">Unassigned</span>
                       </div>
                     )}
                   </div>
-                </div>
-
-                <div className="text-xs text-gray-500">
-                  Created {new Date(lead.createdAt).toLocaleDateString()}
+                  <div className="flex items-center gap-2">
+                    <MessageCircleMore className="h-5 w-5 text-neutral-400" />
+                    <span className="text-sm font-semibold text-neutral-900">
+                      11
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>

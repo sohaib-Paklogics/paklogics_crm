@@ -148,7 +148,6 @@ export const useLeadsStore = create<LeadsState>((set, get) => ({
 
   // 3) Reset + refetch with the exact defaults
   reset: async () => {
-    console.log("Resetting filters to defaults", DEFAULT_FILTERS);
     set({
       items: [],
       pagination: null,

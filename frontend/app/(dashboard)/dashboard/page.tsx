@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 import { useLeadsStore } from "@/stores/leads.store";
 import { MainLayout } from "@/components/layout/main-layout";
 import {
@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, FileText, Calendar, TrendingUp } from "lucide-react";
+import StatsOverview from "@/components/landing/StatsOverview";
+import Image from "next/image";
+import { timeAgo } from "@/utils/TimeUtils";
 import StatusBadge from "@/components/common/StatusBadge";
 
 export default function DashboardPage() {
@@ -91,82 +94,22 @@ export default function DashboardPage() {
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-validiz-brown">
-            {getGreeting()}, {user.username}!
+        <div className="border-b pb-4 border-neutral-200">
+          <h1 className="text-3xl font-bold text-primary">
+            {getGreeting()}, <span className="capitalize">{user.username}</span>
+            !
           </h1>
           <p className="text-gray-600 mt-2">
             Welcome back to your Validiz CRM dashboard
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-              <FileText className="h-4 w-4 text-validiz-brown" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-validiz-brown">
-                {isLoading ? "…" : stats.total}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {user.role === "admin" || user.role === "superadmin"
-                  ? "All leads"
-                  : user.role === "business_developer"
-                  ? "Your leads"
-                  : "Assigned to you"}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New Leads</CardTitle>
-              <TrendingUp className="h-4 w-4 text-validiz-mustard" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-validiz-mustard">
-                {isLoading ? "…" : stats.newLeads}
-              </div>
-              <p className="text-xs text-muted-foreground">Awaiting action</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Interviews</CardTitle>
-              <Calendar className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {isLoading ? "…" : stats.interviewScheduled}
-              </div>
-              <p className="text-xs text-muted-foreground">Scheduled</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <Users className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {isLoading ? "…" : stats.completed}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Successfully closed
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <StatsOverview stats={stats} isLoading={isLoading} user={user} />
 
         {/* Recent Leads */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-validiz-brown">Recent Leads</CardTitle>
+            <CardTitle className="text-black">Recent Leads</CardTitle>
             <CardDescription>Your most recent lead activities</CardDescription>
           </CardHeader>
           <CardContent>
@@ -185,20 +128,22 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={lead._id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex items-center justify-between p-4 border rounded-lg  gap-4"
                     >
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-primary ">
+                        <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-neutral-500 text-sm font-semibold">
+                          {lead.clientName?.[0]?.toUpperCase() ?? "U"}
+                        </div>
+                      </div>
                       <div className="flex-1">
-                        <h4 className="font-medium text-validiz-brown">
-                          {lead.clientName}
-                        </h4>
+                        <h4 className="font-medium ">{lead.clientName}</h4>
                         <p className="text-sm text-gray-600 truncate max-w-md">
                           {lead.jobDescription}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Created by {createdByName} •{" "}
-                          {new Date(lead.createdAt).toLocaleDateString()}
-                        </p>
                       </div>
+                      <p className="mt-1 flex items-center text-xs text-gray-500">
+                        {timeAgo(lead.createdAt)}
+                      </p>
                       <div className="flex items-center space-x-2">
                         <StatusBadge status={lead.stage?.name} />
                       </div>

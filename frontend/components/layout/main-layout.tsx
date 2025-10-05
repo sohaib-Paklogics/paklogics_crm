@@ -5,7 +5,7 @@ import type React from "react";
 import { Sidebar } from "./sidebar";
 import { redirect } from "next/navigation";
 import { useEffect } from "react";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -21,10 +21,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Sidebar />
       <div className="lg:pl-64">
-        <main className="py-6 px-4 sm:px-6 lg:px-8">{children}</main>
+        <main className="py-4 px-4 sm:px-6 lg:px-6">{children}</main>
       </div>
     </div>
   );

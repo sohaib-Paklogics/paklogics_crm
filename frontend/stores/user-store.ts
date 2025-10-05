@@ -17,18 +17,10 @@ interface UserState {
 
   fetchUsers: (params?: Record<string, any>) => Promise<void>;
   getUser: (id: string) => Promise<(AdminUser & { id: string }) | null>;
-  addUser: (
-    data: Partial<AdminUser>
-  ) => Promise<(AdminUser & { id: string }) | null>;
-  updateUser: (
-    id: string,
-    updates: Partial<AdminUser>
-  ) => Promise<(AdminUser & { id: string }) | null>;
+  addUser: (data: Partial<AdminUser>) => Promise<(AdminUser & { id: string }) | null>;
+  updateUser: (id: string, updates: Partial<AdminUser>) => Promise<(AdminUser & { id: string }) | null>;
   deleteUser: (id: string) => Promise<boolean>;
-  toggleUserStatus: (
-    id: string,
-    status: UserStatus
-  ) => Promise<(AdminUser & { id: string }) | null>;
+  toggleUserStatus: (id: string, status: UserStatus) => Promise<(AdminUser & { id: string }) | null>;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -63,12 +55,10 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   // 🔹 Create user
   addUser: async (data) => {
-    console.log("📤 addUser called with:", data);
     const res = await callApi(() => userService.createUser(data), {
       showSuccess: true,
       showError: true,
     });
-    console.log("📥 addUser response:", res);
 
     if (res?.success && res.data) {
       set((state) => ({ users: [...state.users, res.data as AdminUser] }));

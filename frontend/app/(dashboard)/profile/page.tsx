@@ -26,8 +26,9 @@ import {
   Save,
   Loader2,
   CheckCircle,
+  Lock,
 } from "lucide-react";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 import { useUserStore } from "@/stores/user-store";
 
 export default function ProfilePage() {
@@ -35,6 +36,7 @@ export default function ProfilePage() {
   const { updateUser } = useUserStore();
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
 
   const {
     register,
@@ -48,7 +50,21 @@ export default function ProfilePage() {
     },
   });
 
-  // Add loading check
+  // Password form
+  const {
+    register: registerPassword,
+    handleSubmit: handlePasswordSubmit,
+    formState: { errors: passwordErrors },
+    reset: resetPassword,
+    watch,
+  } = useForm({
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
   if (!user) {
     return (
       <MainLayout>
@@ -64,23 +80,41 @@ export default function ProfilePage() {
     setShowSuccess(false);
 
     try {
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Update user data
       const updates: any = { name: data.name };
       if (data.password) {
-        updates.password = data.password; // In real app, this would be hashed
+        updates.password = data.password;
       }
 
       updateUser(user.id, updates);
       reset({ name: data.name, password: "" });
       setShowSuccess(true);
-
-      // Hide success message after 3 seconds
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error("Error updating profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onPasswordSubmit = async (data: any) => {
+    if (data.newPassword !== data.confirmPassword) {
+      alert("Passwords don't match!");
+      return;
+    }
+
+    setIsLoading(true);
+    setShowSuccess(false);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      resetPassword();
+      setShowSuccess(true);
+
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error("Error updating password:", error);
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +148,7 @@ export default function ProfilePage() {
 
   return (
     <MainLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-validiz-brown">
@@ -125,231 +159,251 @@ export default function ProfilePage() {
           </p>
         </div>
 
+        {/* Toggle Buttons */}
+        <div className="flex gap-2 border-b">
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === "profile"
+                ? "text-validiz-brown border-b-2 border-validiz-brown"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <User className="inline-block mr-2 h-4 w-4" />
+            Profile Settings
+          </button>
+          <button
+            onClick={() => setActiveTab("password")}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === "password"
+                ? "text-validiz-brown border-b-2 border-validiz-brown"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Lock className="inline-block mr-2 h-4 w-4" />
+            Password
+          </button>
+        </div>
+
         {/* Success Alert */}
         {showSuccess && (
           <Alert className="border-green-200 bg-green-50">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">
-              Your profile has been updated successfully!
+              {activeTab === "profile"
+                ? "Your profile has been updated successfully!"
+                : "Your password has been updated successfully!"}
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Profile Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center text-validiz-brown">
-              <User className="mr-2 h-5 w-5" />
-              Profile Information
-            </CardTitle>
-            <CardDescription>
-              View and update your personal information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Current Info Display */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">
-                    Full Name
-                  </Label>
-                  <div className="flex items-center mt-1 p-3 bg-gray-50 rounded-md">
-                    <User className="mr-2 h-4 w-4 text-gray-400" />
-                    <span className="text-gray-900">{user.username}</span>
+        {/* Profile Settings Tab */}
+        {activeTab === "profile" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-validiz-brown">
+                Profile Information
+              </CardTitle>
+              <CardDescription>
+                View and update your personal information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Current Info Display */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      Full Name
+                    </Label>
+                    <div className="flex items-center mt-1 p-3 bg-gray-50 rounded-md">
+                      <User className="mr-2 h-4 w-4 text-gray-400" />
+                      <span className="text-gray-900">{user.username}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      Email Address
+                    </Label>
+                    <div className="flex items-center mt-1 p-3 bg-gray-50 rounded-md">
+                      <Mail className="mr-2 h-4 w-4 text-gray-400" />
+                      <span className="text-gray-900">{user.email}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">
-                    Email Address
-                  </Label>
-                  <div className="flex items-center mt-1 p-3 bg-gray-50 rounded-md">
-                    <Mail className="mr-2 h-4 w-4 text-gray-400" />
-                    <span className="text-gray-900">{user.email}</span>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      Role
+                    </Label>
+                    <div className="flex items-center mt-1 p-3 bg-gray-50 rounded-md">
+                      <Shield className="mr-2 h-4 w-4 text-gray-400" />
+                      <Badge className={getRoleBadgeColor(user.role)}>
+                        {user.role.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {getRoleDescription(user.role)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      Member Since
+                    </Label>
+                    <div className="flex items-center mt-1 p-3 bg-gray-50 rounded-md">
+                      <Calendar className="mr-2 h-4 w-4 text-gray-400" />
+                      <span className="text-gray-900">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">
-                    Role
-                  </Label>
-                  <div className="flex items-center mt-1 p-3 bg-gray-50 rounded-md">
-                    <Shield className="mr-2 h-4 w-4 text-gray-400" />
-                    <Badge className={getRoleBadgeColor(user.role)}>
-                      {user.role.toUpperCase()}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {getRoleDescription(user.role)}
-                  </p>
-                </div>
+              <Separator />
 
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">
-                    Member Since
-                  </Label>
-                  <div className="flex items-center mt-1 p-3 bg-gray-50 rounded-md">
-                    <Calendar className="mr-2 h-4 w-4 text-gray-400" />
-                    <span className="text-gray-900">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Edit Form */}
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Update Full Name</Label>
-                <Input
-                  id="name"
-                  placeholder="Enter your full name"
-                  className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-                  {...register("name")}
-                />
-                {errors.name && (
-                  <p className="text-sm text-red-600">{errors.name.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">New Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter new password (leave blank to keep current)"
-                  className="focus:ring-validiz-mustard focus:border-validiz-mustard"
-                  {...register("password")}
-                />
-                {errors.password && (
-                  <p className="text-sm text-red-600">
-                    {errors.password.message}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500">
-                  Leave blank if you don't want to change your password
-                </p>
-              </div>
-
-              <div className="flex justify-end pt-4">
-                <Button
-                  type="submit"
-                  className="bg-validiz-brown hover:bg-validiz-brown/90"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving Changes...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Account Security */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center text-validiz-brown">
-              <Shield className="mr-2 h-5 w-5" />
-              Account Security
-            </CardTitle>
-            <CardDescription>Security information and settings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">Password</h4>
-                  <p className="text-sm text-gray-600">
-                    Last updated:{" "}
-                    {new Date(user.updatedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <Badge
-                  variant="outline"
-                  className="text-green-600 border-green-600"
-                >
-                  Secure
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">Two-Factor Authentication</h4>
-                  <p className="text-sm text-gray-600">
-                    Add an extra layer of security to your account
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" disabled>
-                  Coming Soon
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">Login Sessions</h4>
-                  <p className="text-sm text-gray-600">
-                    Manage your active login sessions
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" disabled>
-                  Coming Soon
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Account Statistics */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-validiz-brown">
-              Account Activity
-            </CardTitle>
-            <CardDescription>Your activity summary</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-validiz-brown">
-                  {user.role === "admin"
-                    ? "All"
-                    : user.role === "business_developer"
-                    ? "Created"
-                    : "Assigned"}
-                </div>
-                <p className="text-sm text-gray-600">Leads Access</p>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-validiz-mustard">
-                  {Math.floor(
-                    (Date.now() - new Date(user.createdAt).getTime()) /
-                      (1000 * 60 * 60 * 24)
+              {/* Edit Form */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Update Full Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="Enter your full name"
+                    className="focus:ring-validiz-mustard focus:border-validiz-mustard"
+                    {...register("name")}
+                  />
+                  {errors.name && (
+                    <p className="text-sm text-red-600">
+                      {errors.name.message}
+                    </p>
                   )}
                 </div>
-                <p className="text-sm text-gray-600">Days Active</p>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">Active</div>
-                <p className="text-sm text-gray-600">Account Status</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+
+                <div className="flex justify-end pt-4">
+                  <Button
+                    type="submit"
+                    className="bg-validiz-brown hover:bg-validiz-brown/90"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving Changes...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Password Change Tab */}
+        {activeTab === "password" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-validiz-brown">
+                Password
+              </CardTitle>
+              <CardDescription>
+                Change your password regularly for better security.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form
+                onSubmit={handlePasswordSubmit(onPasswordSubmit)}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    placeholder="Enter current password"
+                    className="focus:ring-validiz-mustard focus:border-validiz-mustard"
+                    {...registerPassword("currentPassword", {
+                      required: "Current password is required",
+                    })}
+                  />
+                  {passwordErrors.currentPassword && (
+                    <p className="text-sm text-red-600">
+                      {passwordErrors.currentPassword.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      placeholder="Enter new password"
+                      className="focus:ring-validiz-mustard focus:border-validiz-mustard"
+                      {...registerPassword("newPassword", {
+                        required: "New password is required",
+                        minLength: {
+                          value: 6,
+                          message: "Password must be at least 6 characters",
+                        },
+                      })}
+                    />
+                    {passwordErrors.newPassword && (
+                      <p className="text-sm text-red-600">
+                        {passwordErrors.newPassword.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">
+                      Confirm New Password
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm new password"
+                      className="focus:ring-validiz-mustard focus:border-validiz-mustard"
+                      {...registerPassword("confirmPassword", {
+                        required: "Please confirm your password",
+                      })}
+                    />
+                    {passwordErrors.confirmPassword && (
+                      <p className="text-sm text-red-600">
+                        {passwordErrors.confirmPassword.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <Button
+                    type="submit"
+                    className="bg-validiz-brown hover:bg-validiz-brown/90"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating Password...
+                      </>
+                    ) : (
+                      <>Update Password</>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </MainLayout>
   );
