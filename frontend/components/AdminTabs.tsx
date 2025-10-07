@@ -4,12 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserManagementTab } from "./UserManagementTab";
 import RolePermissionsTab from "./RolePermissionsTab";
 
-export function AdminTabs() {
+export function AdminTabs({first,second}: {first: string, second: string}) {
   return (
     <Tabs defaultValue="users" className="space-y-6">
       <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="users">User Management</TabsTrigger>
-        <TabsTrigger value="permissions">Permissions</TabsTrigger>
+        <TabsTrigger value="users">{first}</TabsTrigger>
+        <TabsTrigger value="permissions">{second}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="users">

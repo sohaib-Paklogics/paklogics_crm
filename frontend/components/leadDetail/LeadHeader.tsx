@@ -27,17 +27,16 @@ const LeadHeader = ({
   const prettySource = (src: LeadSource) =>
     src === "job_board" ? "Job Board" : src[0].toUpperCase() + src.slice(1);
 
-  console.log("Lead in Header:", lead);
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <Link href="/leads">
+        {/* <Link href="/leads">
           <Button variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Leads
           </Button>
-        </Link>
+        </Link> */}
         <div>
           <h1 className="text-3xl font-bold">{lead.clientName}</h1>
           <div className="flex items-center gap-2 mt-1">

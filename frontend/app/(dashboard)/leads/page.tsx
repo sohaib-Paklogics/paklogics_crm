@@ -24,14 +24,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AddLeadModal } from "@/components/modals/add-lead-modal";
+import { AddLeadModal } from "@/components/modals/AddLeadModal";
 
 import api from "@/lib/api"; // <-- for fetching stages
 import { useLeadsStore } from "@/stores/leads.store";
 import type { LeadSource, Stage as StageType } from "@/types/lead";
 import StatusBadge from "@/components/common/StatusBadge";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 
 export default function LeadsPage() {
   const router = useRouter();

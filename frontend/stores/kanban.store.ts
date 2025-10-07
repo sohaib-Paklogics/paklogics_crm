@@ -8,9 +8,14 @@ type Board = { stages: Stage[]; columns: Record<string, Column> };
 
 type KanbanState = {
   board: Board | null;
-  isLoading: boolean;
+
+  // granular loading
+  fetchLoading: boolean; // only board fetch
+  moveLoadingById: Record<string, boolean>; // per-lead move loading
   error: string | null;
+
   fetchBoard: (params?: Record<string, any>) => Promise<void>;
+
   moveCard: (
     leadId: string,
     fromStageId: string,
@@ -20,27 +25,36 @@ type KanbanState = {
 
 export const useKanbanStore = create<KanbanState>((set, get) => ({
   board: null,
-  isLoading: false,
+
+  fetchLoading: false,
+  moveLoadingById: {},
   error: null,
 
   fetchBoard: async (params) => {
-    set({ isLoading: true, error: null });
+    set({ fetchLoading: true, error: null });
     const res = await callApi(() => kanbanService.board(params), {
       showError: true,
       showSuccess: false,
     });
+
     if (res?.success) {
-      set({ board: res.data as Board, isLoading: false });
+      set({ board: res.data as Board, fetchLoading: false });
     } else {
-      set({ isLoading: false, error: res?.message || "Failed to load board" });
+      set({
+        fetchLoading: false,
+        error: res?.message || "Failed to load board",
+      });
     }
   },
 
   moveCard: async (leadId, fromStageId, toStageId) => {
-    // optimistic update
     const prev = get().board;
     if (!prev) return;
 
+    // mark this lead as moving
+    set((s) => ({ moveLoadingById: { ...s.moveLoadingById, [leadId]: true } }));
+
+    // optimistic update
     const next: Board = {
       ...prev,
       columns: { ...prev.columns },
@@ -48,6 +62,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
     const fromCol = { ...next.columns[fromStageId] };
     const toCol = { ...next.columns[toStageId] };
+
     const idx = fromCol.data.findIndex((l) => String(l._id) === String(leadId));
     if (idx > -1) {
       const [moved] = fromCol.data.splice(idx, 1);
@@ -63,9 +78,16 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     const res = await callApi(() => kanbanService.move(leadId, toStageId), {
       showError: true,
     });
+
     if (!res?.success) {
       // revert on error
       set({ board: prev });
     }
+
+    // clear moving flag
+    set((s) => {
+      const { [leadId]: _, ...rest } = s.moveLoadingById;
+      return { moveLoadingById: rest };
+    });
   },
 }));

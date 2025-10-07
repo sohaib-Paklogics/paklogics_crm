@@ -4,42 +4,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import {
-  createUserSchema,
-  editUserSchema,
-  type UserFormData,
-  type UserRole,
-  type AdminUser,
-} from "@/types/types";
+import { createUserSchema, editUserSchema, type UserFormData, type UserRole, type AdminUser } from "@/types/types";
 
-import { Plus, MoreHorizontal, Edit, Trash2, Loader2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Loader2, Search, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,24 +23,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useUserStore } from "@/stores/user-store";
+import { Pagination } from "@/components/ui/pagination"; // ← use the corrected Pagination (page/pageCount/onPageChange)
 
 export function UserManagementTab() {
-  const { users, loading, fetchUsers, addUser, updateUser, deleteUser } =
-    useUserStore();
+  const { users, loading, fetchUsers, addUser, updateUser, deleteUser } = useUserStore();
 
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // NEW: search + pagination
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
+
   useEffect(() => {
     fetchUsers().catch(console.error);
   }, [fetchUsers]);
 
-  // Switch resolver depending on create vs edit
-  const resolver = useMemo(
-    () => zodResolver(editingUser ? editUserSchema : createUserSchema),
-    [editingUser]
-  );
+  // reset page on search change
+  useEffect(() => {
+    setPage(1);
+  }, [q]);
+
+  const resolver = useMemo(() => zodResolver(editingUser ? editUserSchema : createUserSchema), [editingUser]);
 
   const {
     register,
@@ -165,30 +146,64 @@ export function UserManagementTab() {
     }
   };
 
+  // ---- FILTER + PAGINATION ----
+  const filteredUsers = useMemo(() => {
+    if (!q.trim()) return users;
+    const term = q.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.username?.toLowerCase().includes(term) ||
+        u.email?.toLowerCase().includes(term) ||
+        (u.role as string)?.toLowerCase().includes(term) ||
+        (u.status as string)?.toLowerCase().includes(term),
+    );
+  }, [users, q]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
+  const start = (page - 1) * itemsPerPage;
+  const pageUsers = filteredUsers.slice(start, start + itemsPerPage);
+
   return (
     <>
       <Card>
-        <CardHeader className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-validiz-brown">Users</CardTitle>
-            <p className="text-sm text-gray-600">
-              Manage users and their roles
-            </p>
+        <CardHeader className="flex ">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+            <div>
+              <CardTitle className="text-validiz-brown mb-1">User Management</CardTitle>
+              <p className="text-sm text-gray-600">Manage team members and their access levels</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  className="pl-4 pr-10 py-2 w-64 border border-neutral-400 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-700"
+                  aria-label="Search"
+                >
+                  <Search size={18} />
+                </button>
+              </div>
+
+              <Button onClick={openCreate} className="bg-validiz-brown hover:bg-validiz-brown/90">
+                <Plus className="mr-2 h-4 w-4" />
+                Add User
+              </Button>
+            </div>
           </div>
-          <Button
-            onClick={openCreate}
-            className="bg-validiz-brown hover:bg-validiz-brown/90"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
         </CardHeader>
 
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-gray-50">
                   <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
@@ -197,6 +212,7 @@ export function UserManagementTab() {
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
                 {loading ? (
                   <TableRow>
@@ -205,32 +221,43 @@ export function UserManagementTab() {
                       Loading users...
                     </TableCell>
                   </TableRow>
-                ) : users.length === 0 ? (
+                ) : pageUsers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">
-                      No users found.
+                      {q ? "No users match your search." : "No users found."}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  users.map((user) => (
+                  pageUsers.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell>{user.username}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-validiz-mustard text-white text-sm font-semibold shadow-md">
+                            {user.username
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </div>
+                          <span>{user.username}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <Badge
-                          className={getRoleBadgeColor(user.role as UserRole)}
-                        >
+                        <Badge className={getRoleBadgeColor(user.role as UserRole)}>
                           {user.role.replace("_", " ").toUpperCase()}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{user.status}</Badge>
+                        <Badge
+                          variant="outline"
+                          className={user.status === "active" ? "border-[#09BF31] text-[#09BF31] bg-[#09BF31]/10" : ""}
+                        >
+                          {user.status}
+                        </Badge>
                       </TableCell>
-                      <TableCell>
-                        {user.createdAt
-                          ? new Date(user.createdAt).toLocaleDateString()
-                          : "-"}
-                      </TableCell>
+                      <TableCell>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -258,6 +285,11 @@ export function UserManagementTab() {
             </Table>
           </div>
         </CardContent>
+
+        {/* Correct, controlled pagination */}
+        <div className="py-4">
+          <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
+        </div>
       </Card>
 
       <Dialog
@@ -277,12 +309,8 @@ export function UserManagementTab() {
       >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-validiz-brown">
-              {editingUser ? "Edit User" : "Add New User"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingUser ? "Update user info" : "Create a new account"}
-            </DialogDescription>
+            <DialogTitle className="text-validiz-brown">{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
+            <DialogDescription>{editingUser ? "Update user info" : "Create a new account"}</DialogDescription>
           </DialogHeader>
 
           <form
@@ -293,19 +321,13 @@ export function UserManagementTab() {
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input id="username" {...register("username")} />
-              {errors.username && (
-                <p className="text-sm text-red-600">
-                  {errors.username.message}
-                </p>
-              )}
+              {errors.username && <p className="text-sm text-red-600">{errors.username.message}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" {...register("email")} />
-              {errors.email && (
-                <p className="text-sm text-red-600">{errors.email.message}</p>
-              )}
+              {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-2">
@@ -314,10 +336,7 @@ export function UserManagementTab() {
                 name="role"
                 control={control}
                 render={({ field }) => (
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
@@ -331,24 +350,14 @@ export function UserManagementTab() {
                   </Select>
                 )}
               />
-              {errors.role && (
-                <p className="text-sm text-red-600">{errors.role.message}</p>
-              )}
+              {errors.role && <p className="text-sm text-red-600">{errors.role.message}</p>}
             </div>
 
             {!editingUser && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  {...register("password")}
-                />
-                {"password" in errors && (
-                  <p className="text-sm text-red-600">
-                    {(errors as any).password?.message}
-                  </p>
-                )}
+                <Input id="password" type="password" {...register("password")} />
+                {"password" in errors && <p className="text-sm text-red-600">{(errors as any).password?.message}</p>}
               </div>
             )}
 
@@ -369,11 +378,7 @@ export function UserManagementTab() {
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={saving}
-                className="bg-validiz-brown hover:bg-validiz-brown/90"
-              >
+              <Button type="submit" disabled={saving} className="bg-validiz-brown hover:bg-validiz-brown/90">
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...

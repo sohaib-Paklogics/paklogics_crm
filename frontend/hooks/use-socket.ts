@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { socketService } from "../services/socket.service";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 
 export const useSocket = () => {
   const { token, isAuthenticated } = useAuthStore();

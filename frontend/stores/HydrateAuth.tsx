@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import useAuthStore from "./auth-store";
+import useAuthStore from "./auth.store";
 import { authService } from "@/services/auth.service";
 import { jwtDecode } from "jwt-decode";
 

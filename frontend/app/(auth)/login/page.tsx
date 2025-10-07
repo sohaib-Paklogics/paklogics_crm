@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Eye, EyeOff } from "lucide-react"; // 👈 Import icons
 import { authService } from "@/services/auth.service";
 import { toast } from "sonner";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -162,7 +162,7 @@ export default function LoginPage() {
                 <strong>Admin:</strong> admin@validiz.com / Admin@123
               </p>
               <p>
-                <strong>BD:</strong> john@validiz.com / Salman@123
+                <strong>BD:</strong> salman@validiz.com / Salman@123
               </p>
               <p>
                 <strong>Developer:</strong> fenix@validiz.com / Fenix@123

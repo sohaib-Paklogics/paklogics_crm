@@ -1,18 +1,13 @@
+
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 import type {
@@ -27,7 +22,6 @@ import ButtonLoader from "./common/ButtonLoader";
 
 // --- constants (backend-aligned) ---
 const ROLE_OPTIONS: { key: RoleKey; label: string }[] = [
-  // { key: "superadmin", label: "Super Admin" },
   { key: "admin", label: "Admin" },
   { key: "business_developer", label: "Business Developer" },
   { key: "developer", label: "Developer" },
@@ -36,27 +30,15 @@ const ROLE_OPTIONS: { key: RoleKey; label: string }[] = [
 // Show these resources in the CRUD grid (order & labels)
 const RESOURCE_ORDER: { key: keyof PermissionsMap; label: string }[] = [
   { key: "leads", label: "Leads" },
-  { key: "users", label: "Users" },
-  { key: "reports", label: "Reports" },
+  { key: "users", label: "Contacts" },
   { key: "calendar", label: "Calendar" },
-  { key: "notes", label: "Notes" },
-  { key: "chat", label: "Chat" },
-  { key: "attachments", label: "Attachments" },
+  { key: "reports", label: "Analytics" },
+  { key: "reports", label: "Reports" },
+  { key: "chat", label: "Settings" },
 ];
 
 const CRUD_ACTIONS: CrudAction[] = ["create", "read", "update", "delete"];
 
-const LEAD_FIELDS: Array<{ key: keyof LeadPermissions; label: string }> = [
-  { key: "clientName", label: "Client Name" },
-  { key: "jobDescription", label: "Job Description" },
-  { key: "leadSource", label: "Lead Source" },
-  { key: "status", label: "Status" },
-  { key: "assignedDeveloper", label: "Assigned Developer" },
-  { key: "notes", label: "Notes" },
-  { key: "attachments", label: "Attachments" },
-];
-
-// sensible defaults if a role is missing or new
 const EMPTY_LEAD_PERMISSIONS: LeadPermissions = {
   clientName: { view: false, edit: false },
   jobDescription: { view: false, edit: false },
@@ -81,22 +63,18 @@ function ensureLeadDefaults(p?: Partial<LeadPermissions>): LeadPermissions {
 }
 
 export default function RolePermissionsTab() {
-  const { byRole, fetchByRole, upsertByRole, isSubmit } =
-    useRolePermissionsStore();
+  const { byRole, fetchByRole, upsertByRole, isSubmit } = useRolePermissionsStore();
 
-  const [selectedRole, setSelectedRole] = useState<RoleKey>("admin");
+  const [selectedRole, setSelectedRole] = useState<RoleKey>("business_developer");
 
   // local editable copies
   const [permissions, setPermissions] = useState<PermissionsMap>({});
-  const [leadPermissions, setLeadPermissions] = useState<LeadPermissions>(
-    EMPTY_LEAD_PERMISSIONS
-  );
+  const [leadPermissions, setLeadPermissions] = useState<LeadPermissions>(EMPTY_LEAD_PERMISSIONS);
 
   // load on role change
   useEffect(() => {
     (async () => {
-      const existing =
-        byRole[selectedRole] ?? (await fetchByRole(selectedRole));
+      const existing = byRole[selectedRole] ?? (await fetchByRole(selectedRole));
       const doc = (existing ?? byRole[selectedRole]) as RPDoc | undefined;
 
       setPermissions({ ...(doc?.permissions ?? {}) });
@@ -106,14 +84,9 @@ export default function RolePermissionsTab() {
 
   // --- CRUD toggles ---
   const hasAction = (resource: string, action: CrudAction) =>
-    Array.isArray(permissions?.[resource]) &&
-    permissions[resource].includes(action);
+    Array.isArray(permissions?.[resource]) && permissions[resource].includes(action);
 
-  const toggleAction = (
-    resource: string,
-    action: CrudAction,
-    checked: boolean
-  ) => {
+  const toggleAction = (resource: string, action: CrudAction, checked: boolean) => {
     setPermissions((prev) => {
       const setForRes = new Set(prev[resource] ?? []);
       if (checked) setForRes.add(action);
@@ -123,31 +96,13 @@ export default function RolePermissionsTab() {
   };
 
   // bulk row toggles (all actions for a resource)
-  const allRowOn = (resource: string) =>
-    CRUD_ACTIONS.every((a) => hasAction(resource, a));
+  const allRowOn = (resource: string) => CRUD_ACTIONS.every((a) => hasAction(resource, a));
 
   const toggleRowAll = (resource: string, on: boolean) => {
     setPermissions((prev) => ({
       ...prev,
       [resource]: on ? [...CRUD_ACTIONS] : [],
     }));
-  };
-
-  // --- Lead Field toggles ---
-  const toggleLeadField = (
-    field: keyof LeadPermissions,
-    type: "view" | "edit",
-    checked: boolean
-  ) => {
-    setLeadPermissions((prev) => {
-      const next = { ...prev };
-      next[field] = { ...next[field], [type]: checked };
-      // Optional rule: if edit=true, ensure view=true
-      if (type === "edit" && checked) next[field].view = true;
-      // Optional rule: if view=false, force edit=false
-      if (type === "view" && !checked) next[field].edit = false;
-      return next;
-    });
   };
 
   const onSave = async () => {
@@ -164,21 +119,9 @@ export default function RolePermissionsTab() {
     setLeadPermissions(ensureLeadDefaults(doc?.leadPermissions));
   };
 
-  // Dynamic add resource (optional UX nicety)
-  const [newResource, setNewResource] = useState("");
-  const addResource = () => {
-    const k = newResource.trim().toLowerCase();
-    if (!k) return;
-    setPermissions((p) => (p[k] ? p : { ...p, [k]: [] }));
-    setNewResource("");
-  };
-
   const displayResources = useMemo(() => {
-    // keep knowns first, then any extra keys
     const known = RESOURCE_ORDER.map((r) => r.key as string);
-    const extra = Object.keys(permissions || {}).filter(
-      (k) => !known.includes(k)
-    );
+    const extra = Object.keys(permissions || {}).filter((k) => !known.includes(k));
     return [
       ...RESOURCE_ORDER.map(({ key, label }) => ({
         key: key as string,
@@ -193,8 +136,6 @@ export default function RolePermissionsTab() {
 
   const roleBadge = (role: RoleKey) => {
     switch (role) {
-      case "superadmin":
-        return "bg-gray-900 text-white";
       case "admin":
         return "bg-red-100 text-red-800";
       case "business_developer":
@@ -211,21 +152,11 @@ export default function RolePermissionsTab() {
       {/* header / role selector */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-validiz-brown">
-            Role Permissions
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Configure module actions and lead field access per role.
-          </p>
+          <h2 className="text-xl font-semibold text-gray-900">Role Permissions</h2>
+          <p className="text-sm text-gray-500 mt-1">Configure access permissions for each role</p>
         </div>
         <div className="flex items-center gap-3">
-          <Badge className={roleBadge(selectedRole)}>
-            {ROLE_OPTIONS.find((r) => r.key === selectedRole)?.label}
-          </Badge>
-          <Select
-            value={selectedRole}
-            onValueChange={(v) => setSelectedRole(v as RoleKey)}
-          >
+          <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as RoleKey)}>
             <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
@@ -241,139 +172,67 @@ export default function RolePermissionsTab() {
       </div>
 
       {/* Module CRUD permissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-validiz-brown">
-            Module Permissions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="shadow-sm">
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-semibold text-validiz-brown">
-                    Module
-                  </th>
-                  <th className="py-3 px-4 text-center">Create</th>
-                  <th className="py-3 px-4 text-center">Read</th>
-                  <th className="py-3 px-4 text-center">Update</th>
-                  <th className="py-3 px-4 text-center">Delete</th>
-                  <th className="py-3 px-4 text-center">All</th>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left py-4 px-6 font-medium text-gray-700 text-sm">Module</th>
+                  <th className="py-4 px-6 text-center font-medium text-gray-700 text-sm">Create</th>
+                  <th className="py-4 px-6 text-center font-medium text-gray-700 text-sm">Read</th>
+                  <th className="py-4 px-6 text-center font-medium text-gray-700 text-sm">Update</th>
+                  <th className="py-4 px-6 text-center font-medium text-gray-700 text-sm">Update</th>
+                  <th className="py-4 px-6 text-center font-medium text-gray-700 text-sm">All</th>
                 </tr>
               </thead>
               <tbody>
                 {displayResources.map(({ key, label }) => (
-                  <tr key={key} className="border-b hover:bg-muted/40">
-                    <td className="py-3 px-4 font-medium">{label}</td>
+                  <tr key={key} className="border-b last:border-b-0 hover:bg-gray-50/50">
+                    <td className="py-4 px-6 font-normal text-gray-700">{label}</td>
                     {CRUD_ACTIONS.map((act) => (
-                      <td key={act} className="py-3 px-4 text-center">
-                        <Checkbox
-                          checked={hasAction(key, act)}
-                          onCheckedChange={(c) => toggleAction(key, act, !!c)}
-                          className="data-[state=checked]:bg-validiz-brown"
-                        />
+                      <td key={act} className="py-4 px-6 text-center">
+                        <div className="flex justify-center">
+                          <Switch
+                            checked={hasAction(key, act)}
+                            onCheckedChange={(c) => toggleAction(key, act, c)}
+                            className="data-[state=checked]:bg-amber-900 data-[state=unchecked]:bg-gray-300"
+                          />
+                        </div>
                       </td>
                     ))}
-                    <td className="py-3 px-4 text-center">
-                      <Checkbox
-                        checked={allRowOn(key)}
-                        onCheckedChange={(c) => toggleRowAll(key, !!c)}
-                        className="data-[state=checked]:bg-validiz-mustard"
-                      />
+                    <td className="py-4 px-6 text-center">
+                      <div className="flex justify-center">
+                        <Switch
+                          checked={allRowOn(key)}
+                          onCheckedChange={(c) => toggleRowAll(key, c)}
+                          className="data-[state=checked]:bg-yellow-500 data-[state=unchecked]:bg-gray-300"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={onReset}>
-              Reset
-            </Button>
-            <Button
-              className="bg-validiz-brown hover:bg-validiz-brown/90"
-              onClick={onSave}
-              disabled={isSubmit}
-            >
-              {isSubmit ? <ButtonLoader /> : "Save Permissions"}
-            </Button>
-          </div>
-          {/* Add custom module key (optional) */}
-          {/* <div className="flex gap-2 mt-4">
-            <Input
-              value={newResource}
-              onChange={(e) => setNewResource(e.target.value)}
-              placeholder="Add custom module key, e.g. billing"
-              className="max-w-sm"
-            />
-            <Button variant="secondary" onClick={addResource}>
-              Add Module
-            </Button>
-          </div> */}
         </CardContent>
       </Card>
 
-      {/* Lead field view/edit permissions */}
-      {/* <Card>
-        <CardHeader>
-          <CardTitle className="text-validiz-brown">
-            Lead Field Permissions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-semibold text-validiz-brown">
-                    Field
-                  </th>
-                  <th className="py-3 px-4 text-center">View</th>
-                  <th className="py-3 px-4 text-center">Edit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {LEAD_FIELDS.map(({ key, label }) => (
-                  <tr key={key} className="border-b hover:bg-muted/40">
-                    <td className="py-3 px-4 font-medium">{label}</td>
-                    <td className="py-3 px-4 text-center">
-                      <Checkbox
-                        checked={!!leadPermissions[key]?.view}
-                        onCheckedChange={(c) =>
-                          toggleLeadField(key, "view", !!c)
-                        }
-                        className="data-[state=checked]:bg-validiz-brown"
-                      />
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <Checkbox
-                        checked={!!leadPermissions[key]?.edit}
-                        onCheckedChange={(c) =>
-                          toggleLeadField(key, "edit", !!c)
-                        }
-                        className="data-[state=checked]:bg-validiz-mustard"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={onReset}>
-              Reset
-            </Button>
-            <Button
-              className="bg-validiz-brown hover:bg-validiz-brown/90"
-              onClick={onSave}
-            >
-              Save Permissions
-            </Button>
-          </div>
-        </CardContent>
-      </Card> */}
+      {/* Footer text and buttons */}
+      <div className="flex items-center justify-between ">
+        <p className="text-sm text-gray-600">
+          Configuring permissions for{" "}
+          <span className="font-semibold">{ROLE_OPTIONS.find((r) => r.key === selectedRole)?.label}</span>
+        </p>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onReset} className="px-6">
+            Refresh
+          </Button>
+          <Button className="bg-amber-900 hover:bg-amber-800 text-white px-6" onClick={onSave} disabled={isSubmit}>
+            {isSubmit ? <ButtonLoader /> : "Save Permissions"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

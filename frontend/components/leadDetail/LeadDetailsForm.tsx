@@ -16,7 +16,7 @@ import { useStagesStore } from "@/stores/stages.store";
 import { useEffect, useMemo } from "react";
 import { useUserStore } from "@/stores/user-store";
 import { AdminUser } from "@/types/types";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 
 const LeadDetailsForm = ({
   isEditing,

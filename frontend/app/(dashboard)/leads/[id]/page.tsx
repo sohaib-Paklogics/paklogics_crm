@@ -8,7 +8,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Stores
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 import { useLeadsStore } from "@/stores/leads.store";
 import { Lead } from "@/types/lead";
 import LeadHeader from "@/components/leadDetail/LeadHeader";

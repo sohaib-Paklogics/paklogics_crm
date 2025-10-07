@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
 import { useNotesStore } from "@/stores/notes.store";
-import useAuthStore from "@/stores/auth-store";
+import useAuthStore from "@/stores/auth.store";
 
 export default function NotesPanel({ leadId }: { leadId: string }) {
   const { items: notes, fetch, create, remove } = useNotesStore();
