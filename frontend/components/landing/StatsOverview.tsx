@@ -82,7 +82,7 @@ function StatCard({ item }: { item: StatItem }) {
         <div className={cn("text-3xl font-bold tracking-tight", ui.text)}>
           {item.value}
         </div>
-        {item.delta && (
+        {/* {item.delta && (
           <div
             className={cn(
               "mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium",
@@ -92,7 +92,7 @@ function StatCard({ item }: { item: StatItem }) {
           >
             {item.delta}
           </div>
-        )}
+        )} */}
        
       </CardContent>
     </Card>

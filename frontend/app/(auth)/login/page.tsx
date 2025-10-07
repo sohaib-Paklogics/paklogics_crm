@@ -71,7 +71,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-validiz-brown">
             <Image
-              src="/assets/logo.png"
+              src="/assets/logo-validiz.png"
               alt="Validiz Logo"
               width={150}
               height={50}
@@ -91,9 +91,7 @@ export default function LoginPage() {
                 className="focus:ring-validiz-mustard focus:border-validiz-mustard"
                 {...register("email")}
               />
-              {errors.email && (
-                <p className="text-sm text-red-600">{errors.email.message}</p>
-              )}
+              {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-2">
@@ -111,18 +109,10 @@ export default function LoginPage() {
                   onClick={() => setShowPassword((prev) => !prev)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-sm text-red-600">
-                  {errors.password.message}
-                </p>
-              )}
+              {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
             </div>
 
             {error && (
@@ -131,11 +121,7 @@ export default function LoginPage() {
               </Alert>
             )}
 
-            <Button
-              type="submit"
-              className="w-full bg-validiz-brown hover:bg-validiz-brown/90"
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full bg-validiz-brown" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -146,11 +132,7 @@ export default function LoginPage() {
               )}
             </Button>
 
-            <Button
-              type="button"
-              variant="link"
-              className="w-full text-validiz-brown hover:text-validiz-brown/80"
-            >
+            <Button type="button" variant="link" className="w-full text-validiz-brown">
               Forgot Password?
             </Button>
           </form>

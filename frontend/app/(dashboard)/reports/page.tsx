@@ -77,7 +77,6 @@ const sourceColorMap: Record<LeadSource, string> = {
   referral: "#F5A623",
   job_board: "#10B981",
   website: "#78350F",
-  
 };
 
 // Custom label for pie chart
@@ -227,7 +226,6 @@ export default function ReportsPage() {
       referral: 0,
       linkedin: 0,
       job_board: 0,
-    
     };
     filteredLeads.forEach((l: any) => {
       counts[(l.source as LeadSource) || "other"]++;
@@ -391,7 +389,7 @@ export default function ReportsPage() {
         </CardContent>
 
         {/* Stats Overview */}
-       
+        <StatsOverview stats={stats} isLoading={isLoading} user={user} />
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

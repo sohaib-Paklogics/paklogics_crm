@@ -74,7 +74,7 @@
 
 /* Custom colors for Validiz CRM */
 .bg-validiz-brown {
-  background-color: #4a171e;
+  background-color: #6E4318;
 }
 
 .bg-validiz-mustard {
@@ -92,7 +92,7 @@
 }
 
 .border-validiz-brown {
-  border-color: #4a171e;
+  border-color: #6E4318;
 }
 
 .border-validiz-mustard {
@@ -100,7 +100,7 @@
 }
 
 .hover\:bg-validiz-brown:hover {
-  background-color: #4a171e;
+  background-color: #6E4318;
 }
 
 .hover\:bg-validiz-mustard:hover {
