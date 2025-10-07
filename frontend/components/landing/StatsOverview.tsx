@@ -1,13 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  Calendar,
-  FileText,
-  TrendingUp,
-  Users,
-  Icon as LucideIcon,
-} from "lucide-react";
+import { Calendar, FileText, TrendingUp, Users, Icon as LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type StatVariant = "blue" | "brown" | "yellow" | "green";
@@ -16,7 +10,7 @@ type StatItem = {
   title: string;
   value: string | number;
   subtitle?: string;
-  delta?: string; 
+  delta?: string;
   icon: typeof LucideIcon;
   variant: StatVariant;
 };
@@ -64,36 +58,14 @@ function StatCard({ item }: { item: StatItem }) {
     <Card className="rounded-2xl border border-neutral-200/80 shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          <CardTitle className="text-sm font-medium text-neutral-700">
-            {item.title}
-          </CardTitle>
-          <div
-            className={cn(
-              "inline-flex h-8 w-8 items-center justify-center rounded-lg",
-              ui.chipBg,
-              ui.chipText
-            )}
-          >
+          <CardTitle className="text-sm font-medium text-neutral-700">{item.title}</CardTitle>
+          <div className={cn("inline-flex h-8 w-8 items-center justify-center rounded-lg", ui.chipBg, ui.chipText)}>
             <Icon className="h-4 w-4" />
           </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className={cn("text-3xl font-bold tracking-tight", ui.text)}>
-          {item.value}
-        </div>
-        {/* {item.delta && (
-          <div
-            className={cn(
-              "mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium",
-              ui.pillBg,
-              ui.pillText
-            )}
-          >
-            {item.delta}
-          </div>
-        )} */}
-       
+        <div className={cn("text-3xl font-bold tracking-tight", ui.text)}>{item.value}</div>
       </CardContent>
     </Card>
   );

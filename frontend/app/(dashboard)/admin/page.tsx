@@ -113,7 +113,7 @@ export default function AdminPage() {
             <p className="text-gray-600 mt-1">Manage users and system permissions</p>
           </div>
 
-          <Button onClick={openCreate} className="bg-validiz-brown hover:bg-validiz-brown/90">
+          <Button onClick={openCreate} className="bg-primary hover:bg-validiz-brown/90">
             <Plus className="mr-2 h-4 w-4" />
             Add User
           </Button>

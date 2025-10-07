@@ -34,17 +34,10 @@ const Card: React.FC<{ b: Benefit; className?: string }> = ({
       ].join(" ")}
     >
       {/* Icon */}
-      <img
-        src={b.icon}
-        alt=""
-        className={`${
-          isGrowth
-            ? "w-[70px] h-[70px] flex-shrink-0"
-            : "w-[60px] h-[60px] mb-6 sm:mb-8"
-        }`}
-      />
-
-      {/* Text Content */}
+   
+  <div className="h-[60px] w-[60px] rounded-full grid place-items-center bg-secondary text-amber-900 shrink-0">
+            <img src="/iconmain1.svg" alt="" />
+          </div>
       <div className="flex flex-col flex-grow">
         <h4
           className={`font-semibold text-left ${
@@ -72,7 +65,7 @@ const Card: React.FC<{ b: Benefit; className?: string }> = ({
 const TrustAndBenefitsSection: React.FC<Props> = ({
   topImage = "/reviews-icon.png",
   ratingLabel = "10k+ Reviews (4.5 out of 5)",
-  bottomFrameFront = "/comm-cards.png",
+  bottomFrameFront = "/comm-cards.svg",
 
   topLeft = {
     title: "Compliance",

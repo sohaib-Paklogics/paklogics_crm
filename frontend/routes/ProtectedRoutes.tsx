@@ -10,14 +10,10 @@ interface ProtectedRouteProps {
   allowedRoles?: string[];
 }
 
-export default function ProtectedRoute({
-  children,
-  allowedRoles, // no default []
-}: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Zustand selectors: stable & minimal subscriptions
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const isLoading = useAuthStore((s) => s.isLoading);
@@ -26,44 +22,68 @@ export default function ProtectedRoute({
   const roles = useMemo<string[] | undefined>(() => {
     if (Array.isArray(allowedRoles) && allowedRoles.length > 0) return allowedRoles;
     return undefined;
-  }, [allowedRoles?.join("|")]); // join() gives a stable dep
+  }, [allowedRoles?.join("|")]);
 
   // Decide if user passes the role check
   const roleAllowed = useMemo(() => {
-    if (!roles) return true; // no role restriction
+    if (!roles) return true;
     if (!user?.role) return false;
     return roles.includes(user.role);
   }, [roles, user?.role]);
 
-  // Redirects happen only in effects, never during render
   useEffect(() => {
     if (isLoading) return;
 
+    // Public routes that don't need authentication
+    const publicRoutes = ["/landingPage", "/login"];
+    const isPublicRoute = publicRoutes.includes(pathname);
+
+    // If not authenticated
     if (!isAuthenticated) {
-      if (pathname !== "/login") router.replace("/login");
+      // If on root, go to landing page first
+      if (pathname === "/") {
+        router.replace("/landingPage");
+        return;
+      }
+      // If not on a public route, redirect to landing page (not login)
+      if (!isPublicRoute) {
+        router.replace("/landingPage");
+        return;
+      }
+      // Already on a public route, do nothing
       return;
     }
 
-    // Authenticated:
-    if (pathname === "/login" || pathname === "/" || pathname === "/landingMain") {
-      router.replace("/dashboard");
-      return;
-    }
+    // If authenticated
+    if (isAuthenticated) {
+      // Redirect from public routes to dashboard
+      if (isPublicRoute || pathname === "/") {
+        router.replace("/dashboard");
+        return;
+      }
 
-    if (!roleAllowed) {
-      router.replace("/");
+      // Check role permissions for protected routes
+      if (!roleAllowed) {
+        router.replace("/dashboard");
+      }
     }
   }, [isLoading, isAuthenticated, roleAllowed, pathname, router]);
 
-  // While auth state is loading or we’re redirecting, show loader
+  // While auth state is loading, show loader
   if (isLoading) return <PageLoader />;
 
-  // If authenticated but role not allowed, show loader while effect redirects
+  // Public routes - always render
+  const publicRoutes = ["/landingPage", "/login"];
+  if (publicRoutes.includes(pathname)) {
+    return <>{children}</>;
+  }
+
+  // If authenticated but role not allowed, show loader while redirecting
   if (isAuthenticated && !roleAllowed) return <PageLoader />;
 
-  // If unauthenticated and not on /login, show loader while effect redirects
-  if (!isAuthenticated && pathname !== "/login") return <PageLoader />;
+  // If not authenticated and not on public route, show loader while redirecting
+  if (!isAuthenticated) return <PageLoader />;
 
-  // Otherwise, render children
+  // Authenticated and role allowed - render children
   return <>{children}</>;
 }

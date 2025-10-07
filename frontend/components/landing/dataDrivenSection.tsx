@@ -47,9 +47,7 @@ const DataDrivenSection: React.FC<DataDrivenProps> = ({
             <h2 className="text-[42.36px] sm:text-[34px] leading-tight font-semibold text-slate-900 whitespace-pre-line text-left">
               {heading}
             </h2>
-            <p className="mt-2 max-w-xl text-[22px] leading-relaxed text-[#424847] text-left">
-              {subheading}
-            </p>
+            <p className="mt-2 max-w-xl text-[22px] leading-relaxed text-[#424847] text-left">{subheading}</p>
 
             {/* Mini cards */}
             <div className="mt-20 grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">
@@ -58,17 +56,11 @@ const DataDrivenSection: React.FC<DataDrivenProps> = ({
                   key={i}
                   className="rounded-[40px] border bg-[#FBF6F0] p-6 md:p-7 shadow-sm hover:shadow-md transition-shadow h-full"
                 >
-                  <img
-                    src={c.icon}
-                    alt={c.title}
-                    className="w-[60px] h-[60px] mb-6"
-                  />
-                  <h3 className="text-[23.06px] font-semibold text-[#0A1425] text-left">
-                    {c.title}
-                  </h3>
-                  <p className="mt-2 text-[15.63pxpx] leading-relaxed text-[#0A1425] text-left">
-                    {c.body}
-                  </p>
+                  <div className="h-[60px] w-[60px] rounded-full grid place-items-center bg-secondary text-amber-900 shrink-0 mb-4">
+                    <img src="/iconmain5.svg" alt="" />
+                  </div>
+                  <h3 className="text-[23.06px] font-semibold text-[#0A1425] text-left">{c.title}</h3>
+                  <p className="mt-2 text-[15.63pxpx] leading-relaxed text-[#0A1425] text-left">{c.body}</p>
                 </article>
               ))}
             </div>
@@ -78,12 +70,10 @@ const DataDrivenSection: React.FC<DataDrivenProps> = ({
           <div className="h-full flex flex-col">
             <div className="rounded-[40px] border bg-[#FBF6F0] p-6 md:p-7 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col">
               <div className="flex items-center gap-3">
-                <div className="grid h-[60px] w-[60px] place-items-center">
-                  <img src="/collab-icon.svg" alt="" />
+                <div className="h-[60px] w-[60px] rounded-full grid place-items-center bg-secondary text-amber-900 shrink-0">
+                  <img src="/iconmain2.svg" alt="" />
                 </div>
-                <h3 className="text-[23.06px] font-semibold text-[#0A1425] ">
-                  {rightTitle}
-                </h3>
+                <h3 className="text-[23.06px] font-semibold text-[#0A1425] ">{rightTitle}</h3>
               </div>
               <p className="mt-2 max-w-lg text-[15.63pxpx] leading-relaxed text-[#0A1425]  text-left ml-12">
                 {rightBody}
@@ -91,11 +81,7 @@ const DataDrivenSection: React.FC<DataDrivenProps> = ({
 
               {/* Layered mockup */}
               <div className="relative mt-4 flex-grow flex items-end justify-end">
-                <img
-                  src={rightPreviewTop}
-                  alt="kanban card"
-                  className="block w-[72%] min-w-[280px]"
-                />
+                <img src={rightPreviewTop} alt="kanban card" className="block w-[72%] min-w-[280px]" />
               </div>
             </div>
           </div>

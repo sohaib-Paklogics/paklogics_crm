@@ -78,7 +78,7 @@ export default function Footer({
               {/* Button */}
               <button
                 type="submit"
-                className="w-full sm:w-auto h-11 px-5 rounded-md bg-[#6E461A] text-white text-[14px] sm:text-[15px] font-semibold hover:bg-[#5f3c15] transition-colors"
+                className="w-full sm:w-auto h-11 px-5 rounded-md bg-secondary text-white text-[14px] sm:text-[15px] font-semibold hover:bg-[#5f3c15] transition-colors"
               >
                 Subscribe
               </button>

@@ -15,13 +15,13 @@ export const Header: React.FC = () => {
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden"; 
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = "auto"; 
+      document.body.style.overflow = "auto";
     }
 
     return () => {
-      document.body.style.overflow = "auto"; 
+      document.body.style.overflow = "auto";
     };
   }, [isOpen]);
 
@@ -50,9 +50,7 @@ export const Header: React.FC = () => {
 
   return (
     <header
-      className={`fixed text-black top-0 left-0 w-full z-50 ${
-        isTransparent ? "bg-transparent" : "bg-white shadow-md"
-      }`}
+      className={`fixed text-black top-0 left-0 w-full z-50 ${isTransparent ? "bg-transparent" : "bg-white shadow-md"}`}
     >
       {/* Outer container */}
       {/* Outer container */}
@@ -60,11 +58,7 @@ export const Header: React.FC = () => {
         {/* Logo - Left */}
         <div className="flex-shrink-0">
           <a href="/">
-            <img
-              src="/validz-logo.svg"
-              alt="NavBar-logo"
-              className="w-[150px] md:w-[180px] lg:w-[200px] h-auto"
-            />
+            <img src="/validz-logo.svg" alt="NavBar-logo" className="w-[150px] md:w-[180px] lg:w-[200px] h-auto" />
           </a>
         </div>
 
@@ -76,9 +70,7 @@ export const Header: React.FC = () => {
                 <a
                   href={item.href}
                   onClick={() => setActive(item.label)}
-                  className={`${
-                    active === item.label ? "underline text-[#6E461A]" : ""
-                  } hover:underline`}
+                  className={`${active === item.label ? "underline text-[#6E461A]" : ""} hover:underline`}
                 >
                   {item.label}
                 </a>
@@ -91,7 +83,7 @@ export const Header: React.FC = () => {
         <div className="hidden md:flex flex-shrink-0">
           <button
             onClick={handleClick}
-            className="bg-[#6E461C] hover:bg-[#8b5e30] text-white px-5 py-2 rounded-lg font-medium hover:text-white transition"
+            className="bg-secondary hover:bg-[#8b5e30] text-white px-5 py-2 rounded-lg font-medium hover:text-white transition"
           >
             Subscribe
           </button>
@@ -99,10 +91,7 @@ export const Header: React.FC = () => {
 
         {/* Mobile Toggle */}
         <div className="md:hidden">
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="focus:outline-none"
-          >
+          <button onClick={() => setIsOpen(!isOpen)} className="focus:outline-none">
             {isOpen ? <X size={32} /> : <Menu size={32} />}
           </button>
         </div>
@@ -125,9 +114,7 @@ export const Header: React.FC = () => {
             <li key={item.label}>
               <a
                 href={item.href}
-                className={`block hover:underline ${
-                  active === item.label ? "text-[#6E461A] font-semibold" : ""
-                }`}
+                className={`block hover:underline ${active === item.label ? "text-[#6E461A] font-semibold" : ""}`}
                 onClick={() => {
                   setActive(item.label);
                   setIsOpen(false);
@@ -149,12 +136,7 @@ export const Header: React.FC = () => {
       </div>
 
       {/* Dark overlay behind sidebar */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+      {isOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setIsOpen(false)} />}
     </header>
   );
 };

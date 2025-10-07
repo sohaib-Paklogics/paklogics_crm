@@ -33,7 +33,6 @@ function BlogCard({ blog, onClick }: { blog: Blog; onClick?: () => void }) {
 
   return (
     <article
-      
       className="rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
       role="button"
       onClick={onClick}
@@ -74,18 +73,13 @@ function BlogCard({ blog, onClick }: { blog: Blog; onClick?: () => void }) {
         {/* Author / meta */}
         <div className="mt-4 flex items-center gap-3 text-[13px] text-slate-600">
           <img
-            src={
-              blog.authorAvatar ||
-              "https://i.pravatar.cc/40?img=" + ((blog.id % 70) + 1)
-            }
+            src={blog.authorAvatar || "https://i.pravatar.cc/40?img=" + ((blog.id % 70) + 1)}
             alt={blog.author}
             className="h-9 w-9 rounded-full"
             loading="lazy"
           />
           <div className="leading-tight">
-            <div className="font-medium text-slate-800 text-left text-[16px]">
-              {blog.author}
-            </div>
+            <div className="font-medium text-slate-800 text-left text-[16px]">{blog.author}</div>
             <div className="flex items-center gap-2 text-[12px] mt-1">
               <span>{blog.date}</span>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
@@ -137,15 +131,11 @@ const BlogSection: React.FC<BlogSectionProps> = ({
       <div className="mx-auto w-[90%] px-4">
         {/* Header */}
         <div className="pt-8 text-center">
-          <div className="text-[22px] font-extrabold tracking-wider uppercase  text-[#6E461C]">
-            Our Blog
-          </div>
-          <h2 className="mt-2 text-[40px] font-bold text-[#0A1425] sm:text-4xl">
-            Resource Center
-          </h2>
+          <div className="text-[22px] font-extrabold tracking-wider uppercase  text-primary">Our Blog</div>
+          <h2 className="mt-2 text-[40px] font-bold text-[#0A1425] sm:text-4xl">Resource Center</h2>
           <p className="mx-auto mt-3 max-w-3xl text-[20px] leading-relaxed text-[#0A1425]">
-            Stay ahead with expert insights, strategies, and tips to help your
-            team close more deals, streamline operations, and scale smarter.
+            Stay ahead with expert insights, strategies, and tips to help your team close more deals, streamline
+            operations, and scale smarter.
           </p>
         </div>
 

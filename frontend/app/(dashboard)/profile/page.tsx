@@ -167,7 +167,7 @@ export default function ProfilePage() {
             aria-selected={activeTab === "profile"}
             onClick={() => setActiveTab("profile")}
             className={clsx(
-              "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-base font-semibold transition-colors",
+              "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs md:text-base font-semibold transition-colors",
               activeTab === "profile" ? "bg-validiz-brown text-white shadow-sm" : "text-gray-900 hover:bg-gray-50",
             )}
           >
@@ -180,7 +180,7 @@ export default function ProfilePage() {
             aria-selected={activeTab === "password"}
             onClick={() => setActiveTab("password")}
             className={clsx(
-              "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-base font-semibold transition-colors",
+              "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs md:text-base font-semibold transition-colors",
               activeTab === "password" ? "bg-validiz-brown text-white shadow-sm" : "text-gray-900 hover:bg-gray-50",
             )}
           >

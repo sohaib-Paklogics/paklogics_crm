@@ -75,7 +75,7 @@ export function Sidebar() {
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 border-r border-neutral-200 text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-neutral-200 text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -123,7 +123,7 @@ export function Sidebar() {
               <User className="mr-3 h-5 w-5" />
               Profile
             </Link>
-           
+
             <LogoutDialog
               open={logoutOpen}
               onOpenChange={setLogoutOpen}

@@ -11,7 +11,7 @@ type HowItWorksProps = {
   title?: string;
   description?: string;
   steps?: Step[];
-  rightImage?: string; 
+  rightImage?: string;
 };
 
 const HowItWorksSection: React.FC<HowItWorksProps> = ({
@@ -42,15 +42,9 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({
       <div className="mx-auto w-[90%] ">
         {/* Header copy */}
         <header className="text-center pt-8">
-          <div className="text-[22px] font-extrabold tracking-wider uppercase  text-[#6E461C]">
-            {eyebrow}
-          </div>
-          <h2 className="mt-2 text-[32px] sm:text-[40px] font-bold text-[#0A1425]">
-            {title}
-          </h2>
-          <p className="mx-auto mt-2 max-w-2xl text-[20px] leading-relaxed text-[#0A1425]">
-            {description}
-          </p>
+          <div className="text-[22px] font-extrabold tracking-wider uppercase  text-primary">{eyebrow}</div>
+          <h2 className="mt-2 text-[32px] sm:text-[40px] font-bold text-[#0A1425]">{title}</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-[20px] leading-relaxed text-[#0A1425]">{description}</p>
         </header>
 
         {/* Two-column content */}
@@ -65,12 +59,8 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({
                 </div>
 
                 <div>
-                  <h3 className="text-[24px] font-semibold text-[#0A1425]">
-                    {s.title}
-                  </h3>
-                  <p className="mt-1 max-w-xl text-[16px] leading-relaxed text-[#0A1425]">
-                    {s.body}
-                  </p>
+                  <h3 className="text-[24px] font-semibold text-[#0A1425]">{s.title}</h3>
+                  <p className="mt-1 max-w-xl text-[16px] leading-relaxed text-[#0A1425]">{s.body}</p>
                 </div>
               </div>
             ))}
@@ -78,11 +68,7 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({
 
           {/* Right: smaller image inside container */}
           <div className="relative w-full h-full flex justify-end items-center">
-            <img
-              src={rightImage}
-              alt="App preview"
-              className="w-[80%] h-auto object-contain"
-            />
+            <img src={rightImage} alt="App preview" className="w-[80%] h-auto object-contain" />
           </div>
         </div>
 

@@ -191,10 +191,10 @@ export function UserManagementTab() {
                 </button>
               </div>
 
-              <Button onClick={openCreate} className="bg-validiz-brown hover:bg-validiz-brown/90">
+              {/* <Button onClick={openCreate} className="bg-validiz-brown hover:bg-validiz-brown/90">
                 <Plus className="mr-2 h-4 w-4" />
                 Add User
-              </Button>
+              </Button> */}
             </div>
           </div>
         </CardHeader>
