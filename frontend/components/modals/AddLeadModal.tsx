@@ -141,7 +141,11 @@ export function AddLeadModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px]">
+      <DialogContent
+        className=" w-[95vw] sm:max-w-[640px]
+    max-h-[82vh] sm:max-h-[86vh]
+    overflow-y-auto"
+      >
         <DialogHeader>
           <DialogTitle>Add New Lead</DialogTitle>
         </DialogHeader>
@@ -154,9 +158,7 @@ export function AddLeadModal({
               <Input
                 id="clientName"
                 value={formData.clientName}
-                onChange={(e) =>
-                  handleInputChange("clientName", e.target.value)
-                }
+                onChange={(e) => handleInputChange("clientName", e.target.value)}
                 required
                 disabled={isBusy}
               />
@@ -166,9 +168,7 @@ export function AddLeadModal({
               <Label htmlFor="source">Source *</Label>
               <Select
                 value={formData.source}
-                onValueChange={(value) =>
-                  handleInputChange("source", value as LeadSource)
-                }
+                onValueChange={(value) => handleInputChange("source", value as LeadSource)}
                 disabled={isBusy}
               >
                 <SelectTrigger>
@@ -191,9 +191,7 @@ export function AddLeadModal({
             <Textarea
               id="jobDescription"
               value={formData.jobDescription}
-              onChange={(e) =>
-                handleInputChange("jobDescription", e.target.value)
-              }
+              onChange={(e) => handleInputChange("jobDescription", e.target.value)}
               rows={3}
               required
               disabled={isBusy}
@@ -210,11 +208,7 @@ export function AddLeadModal({
                 disabled={isBusy || !stages?.length}
               >
                 <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      stagesLoading ? "Loading stages..." : "Select stage"
-                    }
-                  />
+                  <SelectValue placeholder={stagesLoading ? "Loading stages..." : "Select stage"} />
                 </SelectTrigger>
                 <SelectContent>
                   {(stages || []).map((s: any) => (
@@ -226,10 +220,7 @@ export function AddLeadModal({
               </Select>
               {/* Read-only status hint */}
               <p className="text-xs text-muted-foreground">
-                Stage:{" "}
-                <span className="font-medium">
-                  {derivedStatus.replace("_", " ")}
-                </span>
+                Stage: <span className="font-medium">{derivedStatus.replace("_", " ")}</span>
               </p>
             </div>
 
@@ -238,29 +229,18 @@ export function AddLeadModal({
               <Select
                 // if no assignee, select the sentinel "unassigned"
                 value={formData.assignedTo ? formData.assignedTo : "unassigned"}
-                onValueChange={(value) =>
-                  handleInputChange(
-                    "assignedTo",
-                    value === "unassigned" ? "" : value
-                  )
-                }
+                onValueChange={(value) => handleInputChange("assignedTo", value === "unassigned" ? "" : value)}
                 disabled={isBusy}
               >
                 <SelectTrigger>
-                  <SelectValue
-                    placeholder={loading ? "Loading users..." : "Optional"}
-                  />
+                  <SelectValue placeholder={loading ? "Loading users..." : "Optional"} />
                 </SelectTrigger>
                 <SelectContent>
                   {/* <-- sentinel value (NOT empty string) */}
                   <SelectItem value="unassigned">Unassigned</SelectItem>
 
                   {developers.map((u: any) => (
-                    <SelectItem
-                      className="capitalize"
-                      key={u._id}
-                      value={u._id}
-                    >
+                    <SelectItem className="capitalize" key={u._id} value={u._id}>
                       {u.username}
                     </SelectItem>
                   ))}
@@ -284,23 +264,13 @@ export function AddLeadModal({
 
           {/* Actions */}
           <div className="flex justify-end space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isBusy}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
               Cancel
             </Button>
             <Button
-            
               type="submit"
               disabled={
-                isBusy ||
-                !formData.clientName ||
-                !formData.jobDescription ||
-                !formData.source ||
-                !formData.stageId
+                isBusy || !formData.clientName || !formData.jobDescription || !formData.source || !formData.stageId
               }
             >
               {(creating || stagesLoading) && <ButtonLoader />}

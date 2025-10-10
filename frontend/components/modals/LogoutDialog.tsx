@@ -54,7 +54,10 @@ export default function LogoutDialog({
         </AlertDialogTrigger>
       )}
 
-      <AlertDialogContent className="w-[95%] sm:max-w-md rounded-2xl border border-neutral-200/70 bg-white/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+      <AlertDialogContent
+        className="w-[95%] sm:max-w-md rounded-2xl border border-neutral-200/70 bg-white/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.12)]"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <AlertDialogHeader className="space-y-3">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-validiz-mustard/15 flex items-center justify-center">
@@ -75,7 +78,7 @@ export default function LogoutDialog({
           <AlertDialogTitle className="text-lg text-validiz-brown">Log out of your account?</AlertDialogTitle>
 
           <AlertDialogDescription className="text-[13px] text-neutral-600 leading-relaxed">
-            You’ll be signed out and redirected to the login page.
+            You'll be signed out and redirected to the login page.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

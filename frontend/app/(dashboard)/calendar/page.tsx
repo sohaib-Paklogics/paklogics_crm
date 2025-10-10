@@ -222,7 +222,7 @@ export default function CalendarPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("prev")}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-xl font-semibold text-validiz-brown">{periodLabel}</h2>
+            <h2 className="text-sm md:text-xl font-semibold text-validiz-brown">{periodLabel}</h2>
             <Button variant="outline" size="sm" onClick={() => navigate("next")}>
               <ChevronRight className="h-4 w-4" />
             </Button>

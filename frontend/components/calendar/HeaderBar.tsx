@@ -30,8 +30,8 @@ const HeaderBar = ({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 className="text-3xl font-bold text-validiz-brown">Calendar</h1>
-        <p className="text-gray-600 mt-1">Schedule interviews, tests, and follow-ups</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-primary">Calendar</h1>
+        <p className="mt-0.5 sm:mt-1 text-sm text-gray-600">Schedule interviews, tests, and follow-ups</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 sm:items-center">

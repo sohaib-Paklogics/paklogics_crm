@@ -66,9 +66,9 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <Button variant="outline" size="icon" onClick={() => setIsOpen(!isOpen)} className="bg-white shadow-md">
-          {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+      <div className="lg:hidden fixed top-4 left-4 z-50 ">
+        <Button variant="outline" size="icon" onClick={() => setIsOpen(!isOpen)} className="bg-white shadow-md ">
+          {isOpen ? <X className="h-4 w-4 items-end justify-end" /> : <Menu className="h-4 w-4" />}
         </Button>
       </div>
 
@@ -81,8 +81,21 @@ export function Sidebar() {
       >
         <div className="flex flex-col ">
           {/* Logo */}
-          <div className="flex items-center justify-center h-32 px-4 border-b border-white/10">
-            <Image src="/assets/logo-validiz.png" alt="Validiz Logo" width={200} height={75} className="mr-2" />
+          <div className="flex items-center justify-center h-32 px-4 border-b border-white/10 mt-6 md:mt-0">
+            <Link
+              href="/dashboard"
+              aria-label="Go to Dashboard"
+              className="inline-flex items-center cursor-pointer hover:opacity-90"
+            >
+              <Image
+                src="/assets/logo-validiz.png"
+                alt="Validiz Logo"
+                width={200}
+                height={75}
+                className="mr-2"
+                priority
+              />
+            </Link>
           </div>
 
           {/* Navigation */}

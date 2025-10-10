@@ -152,40 +152,44 @@ export default function ProfilePage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="border-b pb-4 border-neutral-200">
-          <h1 className="text-3xl font-bold text-validiz-brown">Profile Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your account information and preferences</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary">Profile Settings</h1>
+          <p className="mt-0.5 sm:mt-1 text-sm text-gray-600">Manage your account information and preferences</p>
         </div>
 
+        {/* Toggle Buttons */}
         {/* Toggle Buttons */}
         <div
           role="tablist"
           aria-label="Profile tabs"
-          className="inline-flex items-center gap-2 rounded-2xl bg-white p-2 shadow ring-1 ring-black/5"
+          className="flex flex-wrap sm:inline-flex w-full sm:w-auto items-center gap-2 rounded-2xl bg-white p-2 shadow ring-1 ring-black/5"
         >
           <button
             role="tab"
             aria-selected={activeTab === "profile"}
+            aria-label="Profile Information"
             onClick={() => setActiveTab("profile")}
             className={clsx(
-              "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs md:text-base font-semibold transition-colors",
+              "inline-flex items-center gap-2 rounded-xl px-3 sm:px-5 py-2 text-xs sm:text-sm md:text-base font-semibold transition-colors min-w-0 flex-1 sm:flex-none justify-center",
               activeTab === "profile" ? "bg-validiz-brown text-white shadow-sm" : "text-gray-900 hover:bg-gray-50",
             )}
           >
-            <User className="h-4 w-4" />
-            <span>Profile Information</span>
+            <User className=" hidden sm:inline h-4 w-4 shrink-0" />
+            {/* Hide text on mobile to prevent wrapping; show from sm+ */}
+            <span className=" truncate">Profile Information</span>
           </button>
 
           <button
             role="tab"
             aria-selected={activeTab === "password"}
+            aria-label="Password Management"
             onClick={() => setActiveTab("password")}
             className={clsx(
-              "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs md:text-base font-semibold transition-colors",
+              "inline-flex items-center gap-2 rounded-xl px-3 sm:px-5 py-2 text-xs sm:text-sm md:text-base font-semibold transition-colors min-w-0 flex-1 sm:flex-none justify-center",
               activeTab === "password" ? "bg-validiz-brown text-white shadow-sm" : "text-gray-900 hover:bg-gray-50",
             )}
           >
-            <Lock className="h-4 w-4" />
-            <span>Password Management</span>
+            <Lock className="hidden sm:inline h-4 w-4 shrink-0" />
+            <span className=" truncate">Password Management</span>
           </button>
         </div>
 

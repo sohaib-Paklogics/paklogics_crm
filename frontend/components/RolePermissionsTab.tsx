@@ -150,17 +150,18 @@ export default function RolePermissionsTab() {
   return (
     <div className="space-y-6">
       {/* header / role selector */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Role Permissions</h2>
-          <p className="text-sm text-gray-500 mt-1">Configure access permissions for each role</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-lg md:text-2xl font-semibold text-primary truncate">Role Permissions</h2>
+          <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-gray-500">Configure access permissions for each role</p>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as RoleKey)}>
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-full sm:w-[220px] max-w-[360px]">
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[280px]">
               {ROLE_OPTIONS.map((r) => (
                 <SelectItem key={r.key} value={r.key}>
                   {r.label}
@@ -219,16 +220,23 @@ export default function RolePermissionsTab() {
       </Card>
 
       {/* Footer text and buttons */}
-      <div className="flex items-center justify-between ">
-        <p className="text-sm text-gray-600">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs sm:text-sm text-gray-600 min-w-0">
           Configuring permissions for{" "}
-          <span className="font-semibold">{ROLE_OPTIONS.find((r) => r.key === selectedRole)?.label}</span>
+          <span className="font-semibold inline-block truncate align-bottom max-w-[18rem] sm:max-w-none">
+            {ROLE_OPTIONS.find((r) => r.key === selectedRole)?.label}
+          </span>
         </p>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onReset} className="px-6">
+
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+          <Button variant="outline" onClick={onReset} className="px-6 w-full sm:w-auto">
             Refresh
           </Button>
-          <Button className="bg-amber-900 hover:bg-amber-800 text-white px-6" onClick={onSave} disabled={isSubmit}>
+          <Button
+            className="bg-amber-900 hover:bg-amber-800 text-white px-6 w-full sm:w-auto"
+            onClick={onSave}
+            disabled={isSubmit}
+          >
             {isSubmit ? <ButtonLoader /> : "Save Permissions"}
           </Button>
         </div>

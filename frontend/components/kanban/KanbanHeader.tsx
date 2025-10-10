@@ -25,15 +25,19 @@ export default function KanbanHeader({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4 border-neutral-200">
       <div>
-        <h1 className="text-3xl font-bold">Lead Pipeline</h1>
-        <p className="text-gray-600 mt-1">{subtitle}</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-primary">Lead Pipeline</h1>
+        <p className="mt-0.5 sm:mt-1 text-sm text-gray-600">{subtitle}</p>
         <p className="text-xs text-muted-foreground mt-1">Total leads: {totalLeads}</p>
       </div>
 
-      <div className="flex items-center gap-2">
-        <SearchBar onCommit={onSearch} />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+        <div className="w-full min-w-0">
+          {/* If SearchBar accepts className, also pass className="w-full" */}
+          <SearchBar onCommit={onSearch} />
+        </div>
+
         {canCreate && (
-          <Button onClick={onAddLead} disabled={addLeadLoading}>
+          <Button onClick={onAddLead} disabled={addLeadLoading} className="w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4 mr-2" />
             {addLeadLoading ? "Opening…" : "Add Lead"}
           </Button>

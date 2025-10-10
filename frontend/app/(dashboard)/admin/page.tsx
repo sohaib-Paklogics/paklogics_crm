@@ -107,13 +107,13 @@ export default function AdminPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-validiz-brown">Admin Panel</h1>
-            <p className="text-gray-600 mt-1">Manage users and system permissions</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary">Admin Panel</h1>
+            <p className="mt-0.5 sm:mt-1 text-sm text-gray-600">Manage users and system permissions</p>
           </div>
 
-          <Button onClick={openCreate} className="bg-primary hover:bg-validiz-brown/90">
+          <Button onClick={openCreate} className="bg-primary hover:bg-validiz-brown/90 w-full sm:w-auto justify-center">
             <Plus className="mr-2 h-4 w-4" />
             Add User
           </Button>

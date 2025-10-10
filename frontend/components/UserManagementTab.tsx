@@ -169,8 +169,10 @@ export function UserManagementTab() {
         <CardHeader className="flex ">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
             <div>
-              <CardTitle className="text-validiz-brown mb-1">User Management</CardTitle>
-              <p className="text-sm text-gray-600">Manage team members and their access levels</p>
+              <CardTitle className="text-lg md:text-2xl font-semibold text-primary truncate">User Management</CardTitle>
+              <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-gray-500">
+                Manage team members and their access levels
+              </p>
             </div>
 
             <div className="flex items-center gap-3">

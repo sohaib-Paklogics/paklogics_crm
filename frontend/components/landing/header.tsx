@@ -10,6 +10,7 @@ export const Header: React.FC = () => {
 
   // Fix: Add missing handler
   const handleClick = () => {
+    
     console.log("Login/Register clicked");
   };
 
@@ -81,12 +82,18 @@ export const Header: React.FC = () => {
 
         {/* Desktop Button - Right */}
         <div className="hidden md:flex flex-shrink-0">
-          <button
+          {/* <button
             onClick={handleClick}
             className="bg-secondary hover:bg-[#8b5e30] text-white px-5 py-2 rounded-lg font-medium hover:text-white transition"
           >
             Subscribe
-          </button>
+          </button> */}
+          <a
+            href="/login"
+            className="bg-secondary hover:bg-secondary/80 text-white px-6 py-3 rounded-md text-sm sm:text-base font-semibold shadow-md transition-all text-center"
+          >
+            Get Started
+          </a>
         </div>
 
         {/* Mobile Toggle */}
