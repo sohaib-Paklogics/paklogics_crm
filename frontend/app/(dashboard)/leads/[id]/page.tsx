@@ -1,3 +1,4 @@
+// app/leads/[id]/page.tsx or similar
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -7,20 +8,18 @@ import { toast } from "sonner";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Stores
 import useAuthStore from "@/stores/auth.store";
 import { useLeadsStore } from "@/stores/leads.store";
 import { Lead } from "@/types/lead";
+
 import LeadHeader from "@/components/leadDetail/LeadHeader";
 import LeadDetailsForm from "@/components/leadDetail/LeadDetailsForm";
-
-// ⬇️ Panels now self-contained
 import AttachmentsPanel from "@/components/leadDetail/AttachmentsPanel";
 import ChatPanel from "@/components/leadDetail/ChatPanel";
 import NotesPanel from "@/components/leadDetail/NotesPanel";
 import TestsPanel from "@/components/leadDetail/TestsPanel";
-import Loader from "@/components/common/Loader";
 import EventsPanel from "@/components/leadDetail/EventsPanel";
+import Loader from "@/components/common/Loader";
 
 export default function LeadDetailPage() {
   const params = useParams();
@@ -32,24 +31,24 @@ export default function LeadDetailPage() {
     | "attachments"
     | "chat"
     | "notes"
-    | "tests";
+    | "tests"
+    | "events";
 
   const { user, hasPermission } = useAuthStore();
   const { getOne, update, assign } = useLeadsStore();
 
   const [lead, setLead] = useState<Lead | null>(null);
-  const [isEditing, setIsEditing] = useState(
-    searchParams.get("edit") === "true"
-  );
+  const [isEditing, setIsEditing] = useState(searchParams.get("edit") === "true");
   const [activeTab, setActiveTab] = useState(initialTab);
   const [editData, setEditData] = useState<Partial<Lead>>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
       const found = await getOne(leadId);
       if (!found) return;
-      setLead(found as unknown as Lead);
-      setEditData(found as unknown as Lead);
+      setLead(found as Lead);
+      setEditData(found as Lead);
     })();
   }, [leadId, getOne]);
 
@@ -59,22 +58,31 @@ export default function LeadDetailPage() {
   }, [user, lead, hasPermission]);
 
   const onSave = async () => {
-    if (!lead) return;
+    if (!lead || saving) return;
+
+    setSaving(true);
+
+    const normalizeStage = (s: any) => {
+      if (!s) return undefined;
+      if (typeof s === "string") return s;
+      if (typeof s === "object" && s._id) return s._id as string;
+      return undefined;
+    };
+
     const payload: Partial<Lead> = {
       clientName: editData.clientName,
       jobDescription: editData.jobDescription,
       source: editData.source,
-      stage: editData.stage,
+      stage: normalizeStage((editData as any).stage ?? (lead as any).stage),
       notes: editData.notes,
     };
 
     const updated = await update(lead._id, payload);
+
     const prevAssignee = lead.assignedTo?._id || null;
     const nextAssignee =
       (editData as any).assignedTo?._id ??
-      (typeof (editData as any).assignedTo === "string"
-        ? (editData as any).assignedTo
-        : null) ??
+      (typeof (editData as any).assignedTo === "string" ? (editData as any).assignedTo : null) ??
       null;
 
     if (updated && prevAssignee !== nextAssignee) {
@@ -82,16 +90,18 @@ export default function LeadDetailPage() {
     }
 
     if (updated) {
-      setLead(updated as unknown as Lead);
+      setLead(updated as Lead);
       setIsEditing(false);
-      toast.success("Lead updated");
     }
+    setSaving(false);
   };
 
   if (!lead) {
     return (
       <MainLayout>
-        <Loader />
+        <div className="h-full flex items-center justify-center">
+          <Loader />
+        </div>
       </MainLayout>
     );
   }
@@ -109,18 +119,11 @@ export default function LeadDetailPage() {
           }}
           onEdit={() => setIsEditing(true)}
           onSave={onSave}
+          isSaving={saving}
         />
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as any)}
-          className="space-y-6"
-        >
-          <TabsList
-            className={`grid w-full ${
-              user?.role !== "developer" ? "grid-cols-6" : "grid-cols-3"
-            }`}
-          >
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
+          <TabsList className={`grid w-full ${user?.role !== "developer" ? "grid-cols-6" : "grid-cols-3"}`}>
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="attachments">Attachments</TabsTrigger>
             <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -134,15 +137,9 @@ export default function LeadDetailPage() {
           </TabsList>
 
           <TabsContent value="details" className="space-y-6">
-            <LeadDetailsForm
-              isEditing={isEditing && canEdit}
-              lead={lead}
-              editData={editData}
-              onChange={setEditData}
-            />
+            <LeadDetailsForm isEditing={isEditing && canEdit} lead={lead} editData={editData} onChange={setEditData} />
           </TabsContent>
 
-          {/* ⬇️ Only pass leadId now */}
           <TabsContent value="attachments" className="space-y-6">
             <AttachmentsPanel leadId={lead._id} />
           </TabsContent>

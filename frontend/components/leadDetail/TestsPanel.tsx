@@ -1,30 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type {
-  TestTask,
-  TestTaskPriority,
-  TestTaskStatus,
-} from "@/types/test-task";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { TestTask, TestTaskPriority } from "@/types/test-task";
 import TestReviewDialog from "../modals/TestReviewDialog";
 import { useTestTasksStore } from "@/stores/testTasks.store";
-import { useUserStore } from "@/stores/user-store";
-import type { AdminUser } from "@/types/types";
-import { toast } from "sonner";
+import { useUserStore } from "@/stores/user.store"; // or "@/stores/useUserStore" if that's the actual path
 import TaskRow from "./TaskRow";
+import { toast } from "sonner";
 
 const UNASSIGNED = "__none__";
 
@@ -43,7 +31,7 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
     replaceAttachment,
   } = useTestTasksStore();
 
-  const { users, fetchUsers } = useUserStore();
+  const { users, fetchDeveloper } = useUserStore();
 
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TestTaskPriority>("medium");
@@ -54,8 +42,8 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
 
   useEffect(() => {
     fetch(leadId, 1, 20);
-    fetchUsers?.({ page: 1, limit: 50 } as any);
-  }, [leadId, fetch, fetchUsers]);
+    fetchDeveloper?.({ page: 1, limit: 50 } as any);
+  }, [leadId, fetch, fetchDeveloper]);
 
   const items = list(leadId);
   const canSubmit = title.trim().length >= 2 && assignee !== UNASSIGNED;
@@ -89,24 +77,14 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
           <CardTitle className="text-validiz-brown">Add Test Task</CardTitle>
         </CardHeader>
         <CardContent>
-          <form
-            className="grid grid-cols-1 md:grid-cols-5 gap-3"
-            onSubmit={submit}
-          >
+          <form className="grid grid-cols-1 md:grid-cols-5 gap-3" onSubmit={submit}>
             <div className="md:col-span-2">
               <Label>Title *</Label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
             </div>
             <div>
               <Label>Priority</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as TestTaskPriority)}
-              >
+              <Select value={priority} onValueChange={(v) => setPriority(v as TestTaskPriority)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -119,11 +97,7 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
             </div>
             <div>
               <Label>Due</Label>
-              <Input
-                type="datetime-local"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+              <Input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
             <div>
               <Label>Assign</Label>
@@ -135,39 +109,24 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
                   <SelectItem className="capitalize" value={UNASSIGNED}>
                     Unassigned
                   </SelectItem>
-                  {(users || []).map((u) => {
-                    const val = (u as any)._id ?? (u as any).id;
-                    return (
-                      <SelectItem className="capitalize" key={val} value={val}>
-                        {u.username}
-                      </SelectItem>
-                    );
-                  })}
+                  {(users || []).map((u) => (
+                    <SelectItem className="capitalize" key={u.id} value={u.id}>
+                      {u.username}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="md:col-span-5">
               <Label>Description</Label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-              />
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
             </div>
 
             <div className="md:col-span-5">
               <Label>Attachments</Label>
-              <Input
-                type="file"
-                multiple
-                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-              />
-              {files.length > 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {files.length} file(s) selected
-                </p>
-              )}
+              <Input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
+              {files.length > 0 && <p className="text-xs text-gray-500 mt-1">{files.length} file(s) selected</p>}
             </div>
 
             <div className="md:col-span-5 flex justify-end">
@@ -182,9 +141,7 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-validiz-brown">
-              Tasks ({items.length})
-            </CardTitle>
+            <CardTitle className="text-validiz-brown">Tasks ({items.length})</CardTitle>
             <Button variant="outline" onClick={() => fetch(leadId, 1, 20)}>
               Refresh
             </Button>
@@ -194,9 +151,7 @@ export default function TestsPanel({ leadId }: { leadId: string }) {
           {isLoading ? (
             <div className="py-10 text-center text-gray-500">Loading…</div>
           ) : items.length === 0 ? (
-            <div className="py-10 text-center text-gray-500">
-              No test tasks yet.
-            </div>
+            <div className="py-10 text-center text-gray-500">No test tasks yet.</div>
           ) : (
             <div className="space-y-3">
               {items.map((t, i) => (

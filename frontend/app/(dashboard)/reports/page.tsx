@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import useAuthStore from "@/stores/auth.store";
 import { useLeadsStore } from "@/stores/leads.store";
-import { useUserStore } from "@/stores/user-store";
+import { useUserStore } from "@/stores/user.store";
 import { useStagesStore } from "@/stores/stages.store";
 
 import { MainLayout } from "@/components/layout/main-layout";

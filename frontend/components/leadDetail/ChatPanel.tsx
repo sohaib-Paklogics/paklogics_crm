@@ -1,3 +1,4 @@
+// components/leadDetail/ChatPanel.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -8,26 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useMessagesStore } from "@/stores/messages.store";
-import { useUserStore } from "@/stores/user-store";
+import { useUserStore } from "@/stores/user.store";
 import type { ChatMessage } from "@/types/message";
 import useAuthStore from "@/stores/auth.store";
+import Loader from "@/components/common/Loader";
 
 type WithMaybe<T> = T | null | undefined;
 
 export default function ChatPanel({ leadId }: { leadId: string }) {
-  const {
-    items: messages,
-    fetch,
-    send,
-    edit,
-    remove,
-    isLoading,
-  } = useMessagesStore();
+  const { items: messages, fetch, send, edit, remove, isLoading } = useMessagesStore();
 
-  // Full list if you still need it elsewhere (not required for canEdit)
   const { users } = useUserStore();
-
-  // Authenticated user (the one who is "me")
   const { user: me } = useAuthStore();
 
   const [text, setText] = useState("");
@@ -39,31 +31,25 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
 
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  // initial fetch
   useEffect(() => {
     fetch(leadId, 1, 50);
   }, [leadId, fetch]);
 
-  // auto-scroll to bottom when messages list changes
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages.length]);
 
-  // determine if the current user can edit/delete a given message
   const canEdit = (m: ChatMessage) => {
     if (!me) return false;
 
-    // senderId could be:
-    // - a string (id/username/"you")
-    // - a populated object with id/_id/username
     const normalize = (v: WithMaybe<string>) => (v ? String(v) : "");
 
     if (typeof m.senderId === "string") {
       const s = normalize(m.senderId);
       return (
-        s.toLowerCase() === "you" || // optimistic local fallback
+        s.toLowerCase() === "you" ||
         s === normalize((me as any)._id) ||
         s === normalize((me as any).id) ||
         s === normalize((me as any).username)
@@ -101,7 +87,6 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
   };
 
   const handleDelete = async (messageId: string) => {
-    if (!remove) return; // if your store doesn't have it yet
     const ok = confirm("Delete this message?");
     if (!ok) return;
     await remove(messageId);
@@ -109,7 +94,7 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
 
   const handleSend = async () => {
     const body = text.trim();
-    if (!body || sending) return; // guard double clicks
+    if (!body || sending) return;
     setSending(true);
     try {
       const ok = await send(leadId, body);
@@ -119,26 +104,22 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
     }
   };
 
-  // prevent repeated sends when holding Enter: ignore if event.repeat
-  const onComposerKeyDown = async (
-    e: React.KeyboardEvent<HTMLTextAreaElement>
-  ) => {
+  const onComposerKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      if ((e as any).repeat) return; // ignore key repeat
+      if ((e as any).repeat) return;
       e.preventDefault();
       await handleSend();
     }
   };
 
-  const onEditorKeyDown = async (
-    e: React.KeyboardEvent<HTMLTextAreaElement>
-  ) => {
+  const onEditorKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       if ((e as any).repeat) return;
       e.preventDefault();
       await saveEdit();
     }
   };
+
   return (
     <Card>
       <CardHeader>
@@ -152,116 +133,102 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
         {/* Messages list */}
         <ScrollArea className="h-[320px] mb-4">
           <div ref={listRef} className="space-y-4 pr-2">
-            {messages.map((m) => {
-              const sender =
-                typeof m.senderId === "string"
-                  ? m.senderId === me?.id
-                    ? { username: me?.username }
-                    : { username: m.senderId } // fallback if not me
-                  : (m.senderId as any);
+            {isLoading ? (
+              <div className="py-10 flex items-center justify-center">
+                <Loader />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                No messages yet. Use chat to keep important conversation history against this lead.
+              </div>
+            ) : (
+              messages.map((m) => {
+                const sender =
+                  typeof m.senderId === "string"
+                    ? m.senderId === me?.id
+                      ? { username: me?.username }
+                      : { username: m.senderId }
+                    : (m.senderId as any);
 
-              const isEditingThis = editingId === m._id;
+                const isEditingThis = editingId === m._id;
 
-              return (
-                <div key={m._id} className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm">
-                    {sender?.username?.charAt(0).toUpperCase() ?? "U"}
-                  </div>
+                return (
+                  <div key={m._id} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm">
+                      {sender?.username?.charAt(0).toUpperCase() ?? "U"}
+                    </div>
 
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-sm">
-                        {sender?.username ?? "User"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {m.timestamp
-                          ? new Date(m.timestamp).toLocaleString()
-                          : ""}
-                      </p>
-                      {"editedAt" in m && (m as any).editedAt ? (
-                        <span className="text-xs text-muted-foreground">
-                          (edited)
-                        </span>
-                      ) : null}
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-sm">{sender?.username ?? "User"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}
+                        </p>
+                        {"editedAt" in m && (m as any).editedAt ? (
+                          <span className="text-xs text-muted-foreground">(edited)</span>
+                        ) : null}
 
-                      {canEdit(m) && !isEditingThis && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => beginEdit(m)}
-                            title="Edit message"
-                          >
-                            <Pencil className="h-3.5 w-3.5 mr-1" />
-                            Edit
-                          </Button>
+                        {canEdit(m) && !isEditingThis && (
+                          <div className="flex items-center gap-1 ml-auto">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => beginEdit(m)}
+                              title="Edit message"
+                            >
+                              <Pencil className="h-3.5 w-3.5 mr-1" />
+                              Edit
+                            </Button>
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs text-destructive"
-                            onClick={() => handleDelete(m._id)}
-                            title="Delete message"
-                          >
-                            <Trash className="h-3.5 w-3.5 mr-1" />
-                            Delete
-                          </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-destructive"
+                              onClick={() => handleDelete(m._id)}
+                              title="Delete message"
+                            >
+                              <Trash className="h-3.5 w-3.5 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {!isEditingThis ? (
+                        <p className="text-sm mt-1 whitespace-pre-wrap">{m.content}</p>
+                      ) : (
+                        <div className="mt-2 space-y-2">
+                          <Textarea
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            onKeyDown={onEditorKeyDown}
+                            rows={3}
+                            autoFocus
+                            disabled={savingEdit}
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={saveEdit} disabled={!editingText.trim() || savingEdit}>
+                              {savingEdit ? (
+                                "Saving..."
+                              ) : (
+                                <>
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Save
+                                </>
+                              )}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={cancelEdit} disabled={savingEdit}>
+                              <X className="h-4 w-4 mr-1" />
+                              Cancel
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {/* content / editor */}
-                    {!isEditingThis ? (
-                      <p className="text-sm mt-1 whitespace-pre-wrap">
-                        {m.content}
-                      </p>
-                    ) : (
-                      <div className="mt-2 space-y-2">
-                        <Textarea
-                          value={editingText}
-                          onChange={(e) => setEditingText(e.target.value)}
-                          onKeyDown={onEditorKeyDown}
-                          rows={3}
-                          autoFocus
-                          disabled={savingEdit}
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={saveEdit}
-                            disabled={!editingText.trim() || savingEdit}
-                          >
-                            {savingEdit ? (
-                              "Saving..."
-                            ) : (
-                              <>
-                                <Check className="h-4 w-4 mr-1" />
-                                Save
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={cancelEdit}
-                            disabled={savingEdit}
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </div>
-              );
-            })}
-
-            {messages.length === 0 && (
-              <div className="text-center text-sm text-muted-foreground py-8">
-                No messages yet.
-              </div>
+                );
+              })
             )}
           </div>
         </ScrollArea>
@@ -274,13 +241,10 @@ export default function ChatPanel({ leadId }: { leadId: string }) {
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onComposerKeyDown}
             rows={3}
-            disabled={sending || !!editingId} // disable while sending or editing
+            disabled={sending || !!editingId}
           />
           <div className="flex justify-end">
-            <Button
-              disabled={!text.trim() || sending || isLoading || !!editingId}
-              onClick={handleSend}
-            >
+            <Button disabled={!text.trim() || sending || isLoading || !!editingId} onClick={handleSend}>
               {sending ? "Sending..." : "Send"}
             </Button>
           </div>

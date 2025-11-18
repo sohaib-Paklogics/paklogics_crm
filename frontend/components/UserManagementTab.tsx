@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useUserStore } from "@/stores/user-store";
+import { useUserStore } from "@/stores/user.store";
 import { Pagination } from "@/components/ui/pagination"; // ← use the corrected Pagination (page/pageCount/onPageChange)
 
 export function UserManagementTab() {

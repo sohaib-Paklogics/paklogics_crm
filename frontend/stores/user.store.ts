@@ -14,8 +14,10 @@ const normalizeUser = (u: any): AdminUser & { id: string } => ({
 interface UserState {
   users: (AdminUser & { id: string })[];
   loading: boolean;
+  error: string | null;
 
   fetchUsers: (params?: Record<string, any>) => Promise<void>;
+  fetchDeveloper: (params?: { page?: number; limit?: number; search?: string; status?: string }) => Promise<void>;
   getUser: (id: string) => Promise<(AdminUser & { id: string }) | null>;
   addUser: (data: Partial<AdminUser>) => Promise<(AdminUser & { id: string }) | null>;
   updateUser: (id: string, updates: Partial<AdminUser>) => Promise<(AdminUser & { id: string }) | null>;
@@ -26,18 +28,37 @@ interface UserState {
 export const useUserStore = create<UserState>((set, get) => ({
   users: [],
   loading: false,
+  error: null,
 
   // 🔹 Fetch all users
   fetchUsers: async (params) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
 
     const res = await callApi(() => userService.getUsers(params), {
       showSuccess: false,
       showError: true,
     });
 
-    // Your console shows: { success, data: { data: Array, pagination: {...} } }
+    // { success, data: { data: Array, pagination: {...} } }
     const list = res?.success ? res.data?.data ?? res.data ?? [] : [];
+
+    set({
+      users: Array.isArray(list) ? list.map(normalizeUser) : [],
+      loading: false,
+    });
+  },
+
+  // 🔹 Fetch only developers (backend route: /admin-users/developers)
+  fetchDeveloper: async (params) => {
+    set({ loading: true, error: null });
+
+    const res = await callApi(() => userService.getDeveloper(params), {
+      showSuccess: false,
+      showError: true,
+    });
+
+    const list = res?.success ? res.data?.data ?? res.data ?? [] : [];
+
     set({
       users: Array.isArray(list) ? list.map(normalizeUser) : [],
       loading: false,
@@ -61,8 +82,9 @@ export const useUserStore = create<UserState>((set, get) => ({
     });
 
     if (res?.success && res.data) {
-      set((state) => ({ users: [...state.users, res.data as AdminUser] }));
-      return res.data as AdminUser;
+      const created = normalizeUser(res.data);
+      set((state) => ({ users: [...state.users, created] }));
+      return created;
     }
     return null;
   },

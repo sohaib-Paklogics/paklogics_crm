@@ -13,6 +13,13 @@ export const userService = {
     return response.data;
   },
 
+  getDeveloper: async (params?: Record<string, any>): Promise<ApiResponse> => {
+    const response = await api.get<ApiResponse>("/admin-auth/developers", {
+      params,
+    });
+    return response.data;
+  },
+
   // 🔹 Get single admin user by ID
   getUserById: async (id: string): Promise<ApiResponse> => {
     const response = await api.get<ApiResponse>(`/admin-auth/${id}`);
@@ -26,10 +33,7 @@ export const userService = {
   },
 
   // 🔹 Update admin user
-  updateUser: async (
-    id: string,
-    data: Partial<AdminUser>
-  ): Promise<ApiResponse> => {
+  updateUser: async (id: string, data: Partial<AdminUser>): Promise<ApiResponse> => {
     const response = await api.put<ApiResponse>(`/admin-auth/${id}`, data);
     return response.data;
   },
@@ -41,10 +45,7 @@ export const userService = {
   },
 
   // 🔹 Toggle admin status
-  toggleStatus: async (
-    id: string,
-    status: "active" | "inactive" | "suspended"
-  ): Promise<ApiResponse> => {
+  toggleStatus: async (id: string, status: "active" | "inactive" | "suspended"): Promise<ApiResponse> => {
     const response = await api.patch<ApiResponse>(`/admin-auth/${id}/status`, {
       status,
     });
@@ -52,18 +53,11 @@ export const userService = {
   },
 
   // 🔹 Change admin password
-  changePassword: async (
-    id: string,
-    currentPassword: string,
-    newPassword: string
-  ): Promise<ApiResponse> => {
-    const response = await api.put<ApiResponse>(
-      `/admin-auth/${id}/change-password`,
-      {
-        currentPassword,
-        newPassword,
-      }
-    );
+  changePassword: async (id: string, currentPassword: string, newPassword: string): Promise<ApiResponse> => {
+    const response = await api.put<ApiResponse>(`/admin-auth/${id}/change-password`, {
+      currentPassword,
+      newPassword,
+    });
     return response.data;
   },
 };

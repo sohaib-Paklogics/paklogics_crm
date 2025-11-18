@@ -22,20 +22,12 @@ const LeadCard = ({
 }) => {
   const { user } = useAuthStore();
 
-  const whileDragging = (isDragging: boolean) =>
-    `mb-3 ${isDragging ? "rotate-2" : ""}`;
+  const whileDragging = (isDragging: boolean) => `mb-3 ${isDragging ? "rotate-2" : ""}`;
   const hoverScale = (isDragging: boolean) =>
-    `cursor-pointer transition-all hover:shadow-md ${
-      !isDragging && canDragDrop ? "hover:scale-105" : ""
-    }`;
-  const assigned =
-    lead.assignedTo && typeof lead.assignedTo === "object"
-      ? lead.assignedTo
-      : null;
+    `cursor-pointer transition-all hover:shadow-md ${!isDragging && canDragDrop ? "hover:scale-105" : ""}`;
+  const assigned = lead.assignedTo && typeof lead.assignedTo === "object" ? lead.assignedTo : null;
 
-  const stageId = String(
-    typeof lead.stage === "string" ? lead.stage : lead.stage?._id
-  );
+  const stageId = String(typeof lead.stage === "string" ? lead.stage : lead.stage?._id);
   const AVATAR_BG = [
     "bg-[#2563EB]",
     "bg-emerald-500",
@@ -53,16 +45,11 @@ const LeadCard = ({
   function bgFromName(name?: string) {
     if (!name) return "bg-neutral-400";
     let hash = 0;
-    for (let i = 0; i < name.length; i++)
-      hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
     return AVATAR_BG[hash % AVATAR_BG.length];
   }
   return (
-    <Draggable
-      draggableId={String(lead._id)}
-      index={index}
-      isDragDisabled={!canDragDrop}
-    >
+    <Draggable draggableId={String(lead._id)} index={index} isDragDisabled={!canDragDrop}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -73,22 +60,13 @@ const LeadCard = ({
           <Card className={hoverScale(snapshot.isDragging)}>
             <CardContent className="p-4">
               <div className="space-y-3">
-                <Badge
-                  variant="outline"
-                  className="text-xs text-primary capitalize bg-gray-50"
-                >
-                  {lead.source === "job_board"
-                    ? "Job Board"
-                    : lead.source.replace("_", " ")}
+                <Badge variant="outline" className="text-xs text-primary capitalize bg-gray-50">
+                  {lead.source === "job_board" ? "Job Board" : lead.source.replace("_", " ")}
                 </Badge>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h4 className="font-semibold  text-md">
-                      {lead.clientName}
-                    </h4>
-                    <p className="text-md text-gray-600 line-clamp-2 mt-1">
-                      {lead.jobDescription}
-                    </p>
+                    <h4 className="font-semibold  text-md">{lead.clientName}</h4>
+                    <p className="text-md text-gray-600 line-clamp-2 mt-1">{lead.jobDescription}</p>
                   </div>
                 </div>
 
@@ -101,7 +79,7 @@ const LeadCard = ({
                           <AvatarFallback
                             className={cn(
                               "h-full w-full rounded-full text-[11px] font-semibold text-white flex items-center justify-center",
-                              bgFromName(assigned.username)
+                              bgFromName(assigned.username),
                             )}
                           >
                             {initial(assigned.username)}
@@ -117,12 +95,12 @@ const LeadCard = ({
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  {/* <div className="flex items-center gap-2">
                     <MessageCircleMore className="h-5 w-5 text-neutral-400" />
                     <span className="text-sm font-semibold text-neutral-900">
                       11
                     </span>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </CardContent>

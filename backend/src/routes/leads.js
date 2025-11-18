@@ -13,7 +13,7 @@ router.get("/:id", protect, ctrl.getOne);
 // Update & delete
 router.put("/:id", protect, authorize("business_developer", "admin", "superadmin"), ctrl.update);
 router.patch("/:id/status", protect, authorize("admin"), ctrl.setStatus);
-router.patch("/:id/assign", protect, authorize("admin", "superadmin"), ctrl.assign);
+router.patch("/:id/assign", protect, authorize("business_developer", "admin", "superadmin"), ctrl.assign);
 router.patch("/:id/stage", protect, authorize("business_developer", "admin", "superadmin"), ctrl.changeStage);
 router.delete("/:id", protect, authorize("admin", "superadmin"), ctrl.remove);
 // routes/lead.routes.js

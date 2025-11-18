@@ -58,6 +58,11 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
   res.json(ApiResponse.success(result, "Admin users fetched"));
 });
 
+export const getDeveloperUsers = asyncHandler(async (req, res) => {
+  const result = await service.getDeveloperUsers(req.query);
+  res.json(ApiResponse.success(result, "Developer users fetched"));
+});
+
 export const getAdminUserById = asyncHandler(async (req, res) => {
   const result = await service.getAdminUserById(req.params.id);
   if (!result) throw new ApiError(404, "Admin user not found");

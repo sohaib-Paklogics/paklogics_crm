@@ -68,6 +68,27 @@ export async function getAdminUsers({ page = 1, limit = 10, search = "", status 
   return paginate(results, page, limit, total);
 }
 
+export async function getDeveloperUsers({ page = 1, limit = 10, search = "", status }) {
+  // base query: only developers
+  const query = { role: "developer" };
+
+  if (search) {
+    query.$or = [{ username: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+  }
+
+  if (status) query.status = status;
+
+  const total = await AdminUser.countDocuments(query);
+
+  const results = await AdminUser.find(query)
+    .select("-password -__v")
+    .skip((page - 1) * limit)
+    .limit(Number(limit))
+    .sort({ createdAt: -1 });
+
+  return paginate(results, page, limit, total);
+}
+
 export async function getAdminUserById(id) {
   return await AdminUser.findById(id).select("-password");
 }

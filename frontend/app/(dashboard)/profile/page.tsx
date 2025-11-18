@@ -8,28 +8,13 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import {
-  User,
-  Mail,
-  Shield,
-  Calendar,
-  Save,
-  Loader2,
-  CheckCircle,
-  Lock,
-} from "lucide-react";
+import { User, Mail, Shield, Calendar, Save, Loader2, CheckCircle, Lock } from "lucide-react";
 import useAuthStore from "@/stores/auth.store";
-import { useUserStore } from "@/stores/user-store";
+import { useUserStore } from "@/stores/user.store";
 import clsx from "clsx";
 
 export default function ProfilePage() {

@@ -3,9 +3,9 @@ import ApiError from "../utils/ApiError.js";
 import { getPagination, paginate } from "../utils/pagination.js";
 import cloudinary, { streamUpload } from "../utils/cloudinary.js";
 
-
 export async function uploadAttachment({ leadId, file, uploadedBy }) {
   if (!file) throw new ApiError(400, "No file provided");
+
   const uploaded = await streamUpload(file.buffer, `crm/leads/${leadId}`);
 
   const doc = await Attachment.create({
@@ -15,7 +15,7 @@ export async function uploadAttachment({ leadId, file, uploadedBy }) {
     fileSize: file.size,
     mimeType: file.mimetype,
     uploadedBy,
-    cloudinaryPublicId: uploaded.public_id, // add this field to model if you want clean deletes
+    cloudinaryPublicId: uploaded.public_id,
   });
 
   return doc;

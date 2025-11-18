@@ -10,7 +10,15 @@ router.get("/get-me", protect, adminController.getMe);
 
 // Admin user management routes (requires admin role)
 router.post("/add-user", adminController.createAdminUser);
-router.get("/", protect, authorize("admin"), adminController.getAdminUsers);
+router.get("/", protect, authorize("admin", "superadmin"), adminController.getAdminUsers);
+
+router.get(
+  "/developers",
+  protect,
+  authorize("admin", "superadmin", "business_developer"),
+  adminController.getDeveloperUsers,
+);
+
 router.get("/:id", protect, authorize("admin"), adminController.getAdminUserById);
 router.put("/:id", protect, authorize("admin"), adminController.updateAdminUser);
 router.patch("/:id/status", protect, authorize("admin"), adminController.toggleAdminStatus);

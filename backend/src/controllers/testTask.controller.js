@@ -21,6 +21,7 @@ export const listAll = asyncHandler(async (req, res) => {
 });
 
 export const listByLead = asyncHandler(async (req, res) => {
+  console.log("Listing test tasks for lead:", req.params.leadId);
   const { leadId } = req.params;
   const q = await validator.listQuerySchema.validateAsync(req.query);
   const data = await service.listByLead(leadId, q);

@@ -8,13 +8,7 @@ import { loginSchema, type LoginFormData } from "@/types/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Eye, EyeOff } from "lucide-react"; // 👈 Import icons
 import { authService } from "@/services/auth.service";
@@ -132,25 +126,10 @@ export default function LoginPage() {
               )}
             </Button>
 
-            <Button type="button" variant="link" className="w-full text-validiz-brown">
+            {/* <Button type="button" variant="link" className="w-full text-validiz-brown">
               Forgot Password?
-            </Button>
+            </Button> */}
           </form>
-
-          <div className="mt-6 p-4 bg-gray-50 rounded-md">
-            <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
-            <div className="text-xs space-y-1">
-              <p>
-                <strong>Admin:</strong> admin@validiz.com / Admin@123
-              </p>
-              <p>
-                <strong>BD:</strong> salman@validiz.com / Salman@123
-              </p>
-              <p>
-                <strong>Developer:</strong> fenix@validiz.com / Fenix@123
-              </p>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>
