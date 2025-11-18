@@ -31,46 +31,6 @@ import StatsOverview from "@/components/landing/StatsOverview";
 
 type LeadSource = "website" | "referral" | "linkedin" | "job_board";
 
-// Stage colors with gradients
-const getStageGradient = (stageName: string) => {
-  const name = stageName.toLowerCase();
-
-  if (name.includes("new")) {
-    return { start: "#3B82F6", end: "#DBEAFE" }; // Blue
-  } else if (name.includes("follow") || name.includes("contact")) {
-    return { start: "#F59E0B", end: "#FEF3C7" }; // Orange/Yellow
-  } else if (name.includes("interview") || name.includes("meeting")) {
-    return { start: "#78350F", end: "#FEF3C7" }; // Brown
-  } else if (name.includes("completed") || name.includes("closed") || name.includes("won")) {
-    return { start: "#10B981", end: "#D1FAE5" }; // Green
-  } else if (name.includes("qualified") || name.includes("proposal")) {
-    return { start: "#8B5CF6", end: "#EDE9FE" }; // Purple
-  }
-
-  // Default gradient
-  return { start: "#4A171E", end: "#FEE2E2" };
-};
-
-// Custom bar shape with gradient and rounded corners
-const RoundedBar = (props: any) => {
-  const { fill, x, y, width, height, payload } = props;
-
-  const gradient = getStageGradient(payload.name);
-  const gradientId = `gradient-${payload.name.replace(/\s+/g, "-").toLowerCase()}`;
-
-  return (
-    <>
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={gradient.start} stopOpacity={1} />
-          <stop offset="100%" stopColor={gradient.end} stopOpacity={1} />
-        </linearGradient>
-      </defs>
-      <rect x={x} y={y} width={width} height={height} fill={`url(#${gradientId})`} rx={12} ry={12} />
-    </>
-  );
-};
-
 // Source color mapping
 const sourceColorMap: Record<LeadSource, string> = {
   linkedin: "#4A90E2",
@@ -79,8 +39,52 @@ const sourceColorMap: Record<LeadSource, string> = {
   website: "#78350F",
 };
 
+// Lighten a hex color for gradient end
+const lightenColor = (hex: string, amount = 0.35) => {
+  if (!hex || !hex.startsWith("#") || (hex.length !== 7 && hex.length !== 4)) {
+    return hex || "#4A171E";
+  }
+
+  const fullHex = hex.length === 4 ? "#" + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3] : hex;
+
+  const num = parseInt(fullHex.slice(1), 16);
+  const r = (num >> 16) & 0xff;
+  const g = (num >> 8) & 0xff;
+  const b = num & 0xff;
+
+  const mix = (channel: number) => Math.round(channel + (255 - channel) * amount);
+
+  const nr = mix(r);
+  const ng = mix(g);
+  const nb = mix(b);
+
+  return "#" + [nr, ng, nb].map((c) => c.toString(16).padStart(2, "0")).join("");
+};
+
+// Custom bar shape with gradient and rounded corners, using stage color from API
+const RoundedBar = (props: any) => {
+  const { x, y, width, height, payload } = props;
+  const baseColor = payload.color || "#4A171E";
+  const gradientId = `stage-gradient-${payload.id}`;
+
+  const start = baseColor;
+  const end = lightenColor(baseColor, 0.45);
+
+  return (
+    <>
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={start} stopOpacity={1} />
+          <stop offset="100%" stopColor={end} stopOpacity={1} />
+        </linearGradient>
+      </defs>
+      <rect x={x} y={y} width={width} height={height} fill={`url(#${gradientId})`} rx={12} ry={12} />
+    </>
+  );
+};
+
 // Custom label for pie chart
-const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
+const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
   const RADIAN = Math.PI / 180;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -102,9 +106,9 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
 
 export default function ReportsPage() {
   const { user, hasPermission } = useAuthStore();
-  const { items: leads, fetch: fetchLeads, isLoading, reset: resetFilters } = useLeadsStore();
+  const { items: leads, fetch: fetchLeads, isLoading: leadsLoading } = useLeadsStore();
   const { users, fetchUsers } = useUserStore();
-  const { items: stages, fetch: fetchStages, isLoading: stagesLoading } = useStagesStore();
+  const { items: stages, fetch: fetchStages, fetchLoading: stagesLoading } = useStagesStore();
 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -112,11 +116,12 @@ export default function ReportsPage() {
 
   // initial loads
   useEffect(() => {
-    fetchUsers?.().catch(() => {});
+    if (user?.role === "admin" || user?.role === "superadmin") {
+      fetchUsers?.({ page: 1, limit: 100 } as any).catch(() => {});
+    }
     fetchStages?.().catch(() => {});
   }, [fetchUsers, fetchStages]);
 
-  // helpers
   const getLeadStageId = useCallback((l: any) => {
     return typeof l.stage === "string" ? l.stage : l.stage?._id;
   }, []);
@@ -172,7 +177,7 @@ export default function ReportsPage() {
     fetchLeads(params).catch(() => {});
   }, [user, dateFrom, dateTo, stageFilter, fetchLeads]);
 
-  // client-side guard
+  // client-side guard (extra safety)
   const filteredLeads = useMemo(() => {
     if (!user) return [];
     let list =
@@ -190,20 +195,9 @@ export default function ReportsPage() {
     return list;
   }, [leads, user, dateFrom, dateTo, stageFilter, getLeadStageId]);
 
-  // Stage-aware chart data
+  // Stage-based chart data: use stages strictly from API
   const stageData = useMemo(() => {
-    const baseStages =
-      (stages && stages.length
-        ? stages.map((s: any) => ({
-            id: String(s._id),
-            name: String(s.name || ""),
-            color: s.color || "#4A171E",
-          }))
-        : Array.from(new Set(filteredLeads.map((l: any) => String(getLeadStageId(l))))).map((id) => ({
-            id,
-            name: stageMap.get(id)?.name || "Unknown",
-            color: stageMap.get(id)?.color || "#4A171E",
-          }))) || [];
+    if (!stages || !stages.length) return [];
 
     const counts: Record<string, number> = {};
     filteredLeads.forEach((l: any) => {
@@ -211,13 +205,16 @@ export default function ReportsPage() {
       counts[sid] = (counts[sid] || 0) + 1;
     });
 
-    return baseStages.map((s) => ({
-      id: s.id,
-      name: s.name,
-      value: counts[s.id] || 0,
-      color: s.color,
-    }));
-  }, [filteredLeads, stages, stageMap, getLeadStageId]);
+    return stages.map((s: any) => {
+      const id = String(s._id);
+      return {
+        id,
+        name: String(s.name || ""),
+        value: counts[id] || 0,
+        color: s.color || "#4A171E",
+      };
+    });
+  }, [filteredLeads, stages, getLeadStageId]);
 
   // Source pie data
   const sourceData = useMemo(() => {
@@ -228,7 +225,8 @@ export default function ReportsPage() {
       job_board: 0,
     };
     filteredLeads.forEach((l: any) => {
-      counts[(l.source as LeadSource) || "other"]++;
+      const src = (l.source as LeadSource) || "website";
+      if (counts[src] !== undefined) counts[src]++;
     });
     return (Object.keys(counts) as LeadSource[]).map((k) => ({
       name: k.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -237,7 +235,7 @@ export default function ReportsPage() {
     }));
   }, [filteredLeads]);
 
-  // Stage semantics for stats
+  // Stage semantics for stats (still inferred from API stage names)
   const completedStageId = findStageIdByName("completed");
   const newStageId = findStageIdByName("new");
 
@@ -253,7 +251,6 @@ export default function ReportsPage() {
 
   const inProgressCount = Math.max(0, filteredLeads.length - newCount - completedCount);
 
-  // Stats object for StatsOverview component
   const stats = useMemo(
     () => ({
       total: filteredLeads.length,
@@ -265,27 +262,45 @@ export default function ReportsPage() {
     [filteredLeads.length, newCount, inProgressCount, completedCount],
   );
 
-  // User performance
+  // User performance:
+  // - Admin/superadmin: see all BD + admin
+  // - BD: sees themselves (even if users API did not include them fully)
   const userPerformance = useMemo(() => {
     if (!user) return [];
-    const reps = (users || []).filter((u: any) => u.role === "business_developer" || u.role === "admin");
+
+    const isAdminRole = user.role === "admin" || user.role === "superadmin";
+    const isBD = user.role === "business_developer";
+
+    let reps: any[] = [];
+
+    if (isAdminRole) {
+      reps = (users || []).filter(
+        (u: any) => u.role === "business_developer" || u.role === "admin" || u.role === "superadmin",
+      );
+    } else if (isBD) {
+      const fromUsers = (users || []).find((u: any) => String(u._id) === String(user.id));
+      reps = [fromUsers || { _id: user.id, username: user.username || "You", role: user.role }];
+    } else {
+      // other roles (like developer) can be extended later if you want
+      reps = [];
+    }
 
     const rows = reps.map((u: any) => {
       const mine = filteredLeads.filter((l: any) => l.createdBy?._id === u._id);
       const total = mine.length;
-      const newLeads = mine.filter((l: any) => newStageId && String(getLeadStageId(l)) === newStageId).length;
-      const completedLeads = mine.filter(
+      const newLeadsCount = mine.filter((l: any) => newStageId && String(getLeadStageId(l)) === newStageId).length;
+      const completedLeadsCount = mine.filter(
         (l: any) => completedStageId && String(getLeadStageId(l)) === completedStageId,
       ).length;
-      const conversionRate = total ? Math.round((completedLeads / total) * 100) : 0;
+      const conversionRate = total ? Math.round((completedLeadsCount / total) * 100) : 0;
 
       return {
         id: u._id,
         name: u.username,
         role: u.role,
         totalLeads: total,
-        newLeads,
-        completedLeads,
+        newLeads: newLeadsCount,
+        completedLeads: completedLeadsCount,
         conversionRate,
       };
     });
@@ -328,16 +343,22 @@ export default function ReportsPage() {
     );
   }
 
-  if (!hasPermission({ action: "read", resource: "reports" })) {
+  // Explicit role-based access: allow admin / superadmin / business_developer
+  const allowedRoles = ["admin", "superadmin", "business_developer"];
+  if (!allowedRoles.includes(user.role)) {
     return (
       <MainLayout>
         <div className="text-center py-12">
           <BarChart3 className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-          <p className="text-gray-500">Access denied. Reports are only available to Admin and BD roles.</p>
+          <p className="text-gray-500">
+            Access denied. Reports are only available to Admin and Business Developer roles.
+          </p>
         </div>
       </MainLayout>
     );
   }
+
+  const chartsLoading = leadsLoading || stagesLoading;
 
   return (
     <MainLayout>
@@ -351,45 +372,51 @@ export default function ReportsPage() {
         </div>
 
         {/* Filters */}
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b pb-4 border-neutral-200">
-            <div className="space-y-2">
-              <Label htmlFor="dateFrom">From Date</Label>
-              <Input id="dateFrom" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dateTo">To Date</Label>
-              <Input id="dateTo" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-            </div>
+        <Card>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b pb-4 border-neutral-200">
+              <div className="space-y-2">
+                <Label htmlFor="dateFrom">From Date</Label>
+                <Input id="dateFrom" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dateTo">To Date</Label>
+                <Input id="dateTo" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="stage">Stage</Label>
-              <Select value={stageFilter} onValueChange={(v) => setStageFilter(v as string | "all")}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All stages" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Stages</SelectItem>
-                  {(stages || []).map((s: any) => (
-                    <SelectItem key={String(s._id)} value={String(s._id)}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="stage">Stage</Label>
+                <Select value={stageFilter} onValueChange={(v) => setStageFilter(v as string | "all")}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All stages" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stages</SelectItem>
+                    {(stages || []).map((s: any) => (
+                      <SelectItem key={String(s._id)} value={String(s._id)}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="flex items-end">
-              <Button onClick={exportToCSV} className="w-full bg-validiz-brown hover:bg-validiz-brown/90">
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
+              <div className="flex items-end">
+                <Button
+                  onClick={exportToCSV}
+                  className="w-full bg-validiz-brown hover:bg-validiz-brown/90"
+                  disabled={filteredLeads.length === 0}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export CSV
+                </Button>
+              </div>
             </div>
-          </div>
-        </CardContent>
+          </CardContent>
+        </Card>
 
         {/* Stats Overview */}
-        <StatsOverview stats={stats} isLoading={isLoading} user={user} />
+        <StatsOverview stats={stats} isLoading={leadsLoading} user={user} />
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -399,27 +426,37 @@ export default function ReportsPage() {
               <CardTitle className="text-xl font-semibold">Leads by Stage</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={340}>
-                <BarChart data={stageData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#6B7280", fontSize: 13 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#6B7280", fontSize: 12 }} />
-                  <Tooltip
-                    cursor={{ fill: "transparent" }}
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "1px solid #E5E7EB",
-                      borderRadius: "8px",
-                      padding: "8px 12px",
-                    }}
-                  />
-                  <Bar dataKey="value" shape={<RoundedBar />} maxBarSize={100}>
-                    {stageData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {chartsLoading ? (
+                <div className="h-[340px] flex items-center justify-center text-sm text-gray-500">
+                  Loading stage data…
+                </div>
+              ) : stageData.length === 0 ? (
+                <div className="h-[340px] flex items-center justify-center text-sm text-gray-500">
+                  No data for current filters.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={340}>
+                  <BarChart data={stageData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#6B7280", fontSize: 13 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "#6B7280", fontSize: 12 }} />
+                    <Tooltip
+                      cursor={{ fill: "transparent" }}
+                      contentStyle={{
+                        backgroundColor: "white",
+                        border: "1px solid #E5E7EB",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                      }}
+                    />
+                    <Bar dataKey="value" shape={<RoundedBar />} maxBarSize={100}>
+                      {stageData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -429,40 +466,51 @@ export default function ReportsPage() {
               <CardTitle className="text-xl font-semibold">Lead Sources</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={340}>
-                <PieChart>
-                  <Pie
-                    data={sourceData}
-                    cx="50%"
-                    cy="45%"
-                    innerRadius={50}
-                    outerRadius={150}
-                    labelLine={false}
-                    label={renderCustomLabel}
-                    dataKey="value"
-                  >
-                    {sourceData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {leadsLoading ? (
+                <div className="h-[340px] flex items-center justify-center text-sm text-gray-500">
+                  Loading source data…
+                </div>
+              ) : sourceData.every((s) => s.value === 0) ? (
+                <div className="h-[340px] flex items-center justify-center text-sm text-gray-500">
+                  No data for current filters.
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={340}>
+                    <PieChart>
+                      <Pie
+                        data={sourceData}
+                        cx="50%"
+                        cy="45%"
+                        innerRadius={50}
+                        outerRadius={150}
+                        labelLine={false}
+                        label={renderCustomLabel}
+                        dataKey="value"
+                      >
+                        {sourceData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
 
-              {/* Legend */}
-              <div className="flex flex-wrap justify-center gap-4 mt-4">
-                {sourceData.map((entry, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-sm text-gray-600">
-                      {entry.name}{" "}
-                      <span className="font-semibold">
-                        {Math.round((entry.value / filteredLeads.length) * 100) || 0}%
-                      </span>
-                    </span>
+                  <div className="flex flex-wrap justify-center gap-4 mt-4">
+                    {sourceData.map((entry, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                        <span className="text-sm text-gray-600">
+                          {entry.name}{" "}
+                          <span className="font-semibold">
+                            {filteredLeads.length ? Math.round((entry.value / filteredLeads.length) * 100) : 0}%
+                          </span>
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -490,7 +538,13 @@ export default function ReportsPage() {
                     <TableRow key={u.id} className="hover:bg-gray-50">
                       <TableCell className="font-medium">{u.name}</TableCell>
                       <TableCell>
-                        <Badge className={u.role === "admin" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}>
+                        <Badge
+                          className={
+                            u.role === "admin" || u.role === "superadmin"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-blue-100 text-blue-800"
+                          }
+                        >
                           {u.role.toUpperCase()}
                         </Badge>
                       </TableCell>
@@ -513,7 +567,7 @@ export default function ReportsPage() {
                   {userPerformance.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        {isLoading || stagesLoading ? "Loading…" : "No data for current filters"}
+                        {leadsLoading || stagesLoading ? "Loading…" : "No data for current filters"}
                       </TableCell>
                     </TableRow>
                   )}
