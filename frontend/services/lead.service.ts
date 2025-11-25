@@ -1,11 +1,6 @@
 // src/services/lead.service.ts
 import api from "@/lib/api";
-import type {
-  ApiResponse,
-  Lead,
-  LeadFilters,
-  PaginatedResponse,
-} from "@/types/lead";
+import type { ApiResponse, Lead, LeadFilters, PaginatedResponse } from "@/types/lead";
 
 export const leadService = {
   create: async (payload: Partial<Lead>): Promise<ApiResponse<Lead>> => {
@@ -13,13 +8,8 @@ export const leadService = {
     return data;
   },
 
-  list: async (
-    filters: LeadFilters
-  ): Promise<ApiResponse<PaginatedResponse<Lead>>> => {
-    const { data } = await api.get<ApiResponse<PaginatedResponse<Lead>>>(
-      "/leads",
-      { params: filters }
-    );
+  list: async (filters: LeadFilters): Promise<ApiResponse<PaginatedResponse<Lead>>> => {
+    const { data } = await api.get<ApiResponse<PaginatedResponse<Lead>>>("/leads", { params: filters });
     return data;
   },
 
@@ -28,47 +18,37 @@ export const leadService = {
     return data;
   },
 
-  update: async (
-    id: string,
-    payload: Partial<Lead>
-  ): Promise<ApiResponse<Lead>> => {
+  update: async (id: string, payload: Partial<Lead>): Promise<ApiResponse<Lead>> => {
     const { data } = await api.put<ApiResponse<Lead>>(`/leads/${id}`, payload);
     return data;
   },
 
-  remove: async (
-    id: string
-  ): Promise<ApiResponse<{ id: string; deletedAt: string }>> => {
-    const { data } = await api.delete<
-      ApiResponse<{ id: string; deletedAt: string }>
-    >(`/leads/${id}`);
+  remove: async (id: string): Promise<ApiResponse<{ id: string; deletedAt: string }>> => {
+    const { data } = await api.delete<ApiResponse<{ id: string; deletedAt: string }>>(`/leads/${id}`);
     return data;
   },
 
   assign: async (
     id: string,
-    assignedTo: string | null
+    assignedTo: string | null,
+    assignedBusinessDeveloper?: string | null, // 👈 NEW optional param
   ): Promise<ApiResponse<Lead>> => {
     const { data } = await api.patch<ApiResponse<Lead>>(`/leads/${id}/assign`, {
       assignedTo,
+      // 👇 send business developer if provided
+      assignedBusinessDeveloper,
     });
     return data;
   },
 
-  changeStage: async (
-    id: string,
-    stage: string
-  ): Promise<ApiResponse<Lead>> => {
+  changeStage: async (id: string, stage: string): Promise<ApiResponse<Lead>> => {
     const { data } = await api.patch<ApiResponse<Lead>>(`/leads/${id}/stage`, {
       stage,
     });
     return data;
   },
 
-  changeStatus: async (
-    id: string,
-    status: Lead["status"]["value"]
-  ): Promise<ApiResponse<Lead>> => {
+  changeStatus: async (id: string, status: Lead["status"]["value"]): Promise<ApiResponse<Lead>> => {
     const { data } = await api.patch<ApiResponse<Lead>>(`/leads/${id}/status`, {
       status,
     });

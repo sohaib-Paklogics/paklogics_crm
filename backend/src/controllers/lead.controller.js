@@ -12,7 +12,7 @@ export const create = asyncHandler(async (req, res) => {
 
 export const list = asyncHandler(async (req, res) => {
   const q = await validator.listQuerySchema.validateAsync(req.query);
-  const result = await service.getLeads(q);
+  const result = await service.getLeads(q, req.user);
   res.json(ApiResponse.success(result, "Leads fetched"));
 });
 
@@ -33,8 +33,13 @@ export const remove = asyncHandler(async (req, res) => {
 });
 
 export const assign = asyncHandler(async (req, res) => {
-  const { assignedTo } = await validator.assignSchema.validateAsync(req.body);
-  const updated = await service.assignLead(req.params.id, assignedTo);
+  const { assignedTo, assignedBusinessDeveloper } = await validator.assignSchema.validateAsync(req.body);
+
+  const updated = await service.assignLead(req.params.id, {
+    assignedTo,
+    assignedBusinessDeveloper,
+  });
+
   res.json(ApiResponse.success(updated, "Lead assigned"));
 });
 

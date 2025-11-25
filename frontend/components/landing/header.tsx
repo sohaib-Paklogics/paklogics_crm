@@ -9,10 +9,7 @@ export const Header: React.FC = () => {
   const [active, setActive] = useState<string>("Home");
 
   // Fix: Add missing handler
-  const handleClick = () => {
-    
-    console.log("Login/Register clicked");
-  };
+  const handleClick = () => {};
 
   useEffect(() => {
     if (isOpen) {

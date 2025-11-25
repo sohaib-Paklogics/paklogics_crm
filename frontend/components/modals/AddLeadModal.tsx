@@ -29,8 +29,15 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
   // stages
   const { items: stages, fetch: fetchStages, fetchLoading: stagesLoading } = useStagesStore();
 
-  // developers
-  const { users, fetchDeveloper, loading: developersLoading } = useUserStore();
+  // separate dev + BD slices from store
+  const {
+    developers,
+    businessDevelopers,
+    fetchDeveloper,
+    fetchBusinessDeveloper,
+    loadingDevelopers,
+    loadingBusinessDevelopers,
+  } = useUserStore();
 
   const [formData, setFormData] = useState<{
     clientName: string;
@@ -38,6 +45,7 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
     source: LeadSource | "";
     stageId: string;
     assignedTo: string;
+    businessDeveloper: string;
     notes: string;
   }>({
     clientName: "",
@@ -45,6 +53,7 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
     source: "",
     stageId: "",
     assignedTo: "",
+    businessDeveloper: "",
     notes: "",
   });
 
@@ -55,6 +64,7 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
       source: "",
       stageId: "",
       assignedTo: "",
+      businessDeveloper: "",
       notes: "",
     });
   };
@@ -66,12 +76,20 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
     onOpenChange(next);
   };
 
-  // load stages + developers when modal opens
+  // load stages + developers + business developers when modal opens
   useEffect(() => {
     if (!open) return;
+
     fetchStages();
-    fetchDeveloper?.({ page: 1, limit: 50 } as any);
-  }, [open, fetchStages, fetchDeveloper]);
+
+    // fetch devs + BDs in parallel
+    Promise.all([
+      fetchDeveloper?.({ page: 1, limit: 50 } as any),
+      fetchBusinessDeveloper?.({ page: 1, limit: 50 } as any),
+    ]).catch(() => {
+      // errors are already handled by callApi (toasts etc.)
+    });
+  }, [open, fetchStages, fetchDeveloper, fetchBusinessDeveloper]);
 
   // pick default stage (isDefault) when stages loaded
   useEffect(() => {
@@ -92,14 +110,11 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
   // status is derived from stage.key (read-only)
   const derivedStatus = selectedStage?.key ?? "new";
 
-  // guard: only developers (even if API already returns just devs)
-  const developers = useMemo(() => (users || []).filter((u: any) => u.role === "developer"), [users]);
-
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const isBusy = creating || stagesLoading || developersLoading;
+  const isBusy = creating || stagesLoading || loadingDevelopers || loadingBusinessDevelopers;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +130,12 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
     };
 
     if (formData.assignedTo) payload.assignedTo = formData.assignedTo;
+
+    // send business developer assignment to API
+    if (formData.businessDeveloper) {
+      payload.assignedBusinessDeveloper = formData.businessDeveloper;
+    }
+
     if (formData.notes.trim()) payload.notes = formData.notes.trim();
 
     const created = await create(payload);
@@ -248,7 +269,7 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
                   disabled={isBusy}
                 >
                   <SelectTrigger id="assignedTo">
-                    <SelectValue placeholder={developersLoading ? "Loading developers..." : "Unassigned"} />
+                    <SelectValue placeholder={loadingDevelopers ? "Loading developers..." : "Unassigned"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
@@ -265,6 +286,34 @@ export function AddLeadModal({ open, onOpenChange, onSuccess }: AddLeadModalProp
                 <p className="text-xs text-muted-foreground">
                   Assign a developer now, or leave it unassigned for later.
                 </p>
+              </div>
+
+              {/* Business Developer assignment */}
+              <div className="space-y-1.5">
+                <Label htmlFor="businessDeveloper">Assign Business Developer (optional)</Label>
+                <Select
+                  value={formData.businessDeveloper ? formData.businessDeveloper : "unassigned"}
+                  onValueChange={(value) => handleInputChange("businessDeveloper", value === "unassigned" ? "" : value)}
+                  disabled={isBusy}
+                >
+                  <SelectTrigger id="businessDeveloper">
+                    <SelectValue
+                      placeholder={loadingBusinessDevelopers ? "Loading business developers..." : "Unassigned"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {businessDevelopers.map((u: any) => {
+                      const id = String(u.id ?? u._id);
+                      return (
+                        <SelectItem className="capitalize" key={id} value={id}>
+                          {u.username}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Assign a business developer to nurture this lead.</p>
               </div>
             </div>
           </div>

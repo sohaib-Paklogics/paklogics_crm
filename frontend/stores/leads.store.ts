@@ -26,13 +26,10 @@ interface LeadsState {
   getOne: (id: string) => Promise<Lead | null>;
   create: (payload: Partial<Lead>) => Promise<Lead | null>;
   update: (id: string, payload: Partial<Lead>) => Promise<Lead | null>;
-  assign: (id: string, assignedTo: string | null) => Promise<Lead | null>;
+  assign: (id: string, assignedTo: string | null, assignedBusinessDeveloper?: string | null) => Promise<Lead | null>;
 
   changeStage: (id: string, stage: string) => Promise<Lead | null>;
-  changeStatus: (
-    id: string,
-    status: Lead["status"]["value"]
-  ) => Promise<Lead | null>;
+  changeStatus: (id: string, status: Lead["status"]["value"]) => Promise<Lead | null>;
 
   remove: (id: string) => Promise<boolean>;
   setFilters: (f: Partial<LeadFilters>) => void;
@@ -97,8 +94,8 @@ export const useLeadsStore = create<LeadsState>((set, get) => ({
     return null;
   },
 
-  assign: async (id, assignedTo) => {
-    const res = await callApi(() => leadService.assign(id, assignedTo), {
+  assign: async (id, assignedTo, assignedBusinessDeveloper) => {
+    const res = await callApi(() => leadService.assign(id, assignedTo, assignedBusinessDeveloper), {
       successMessage: "Lead assigned",
     });
     if (res?.success) {

@@ -68,9 +68,9 @@ export async function getAdminUsers({ page = 1, limit = 10, search = "", status 
   return paginate(results, page, limit, total);
 }
 
-export async function getDeveloperUsers({ page = 1, limit = 10, search = "", status }) {
+export async function getDeveloperUsers({ page = 1, limit = 10, search = "", status, role = "developer" }) {
   // base query: only developers
-  const query = { role: "developer" };
+  const query = { role };
 
   if (search) {
     query.$or = [{ username: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];

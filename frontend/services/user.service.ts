@@ -15,7 +15,20 @@ export const userService = {
 
   getDeveloper: async (params?: Record<string, any>): Promise<ApiResponse> => {
     const response = await api.get<ApiResponse>("/admin-auth/developers", {
-      params,
+      params: {
+        ...(params || {}),
+        role: "developer",
+      },
+    });
+    return response.data;
+  },
+
+  getBusinessDeveloper: async (params?: Record<string, any>): Promise<ApiResponse> => {
+    const response = await api.get<ApiResponse>("/admin-auth/developers", {
+      params: {
+        ...(params || {}),
+        role: "business_developer",
+      },
     });
     return response.data;
   },

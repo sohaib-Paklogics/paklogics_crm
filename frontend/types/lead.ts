@@ -1,19 +1,9 @@
 // src/types/lead.ts
-export type LeadStage =
-  | "new"
-  | "interview_scheduled"
-  | "test_assigned"
-  | "completed";
+export type LeadStage = "new" | "interview_scheduled" | "test_assigned" | "completed";
 
 export type LeadLifecycleStatus = "active" | "delayed" | "deleted";
 
-export type LeadSource =
-  | "all"
-  | "website"
-  | "referral"
-  | "linkedin"
-  | "job_board"
-  | "other";
+export type LeadSource = "all" | "website" | "referral" | "linkedin" | "job_board" | "other";
 
 export interface Stage {
   _id: string;
@@ -33,6 +23,15 @@ export interface Lead {
   jobDescription: string;
   source: LeadSource;
   assignedTo?: {
+    _id: string;
+    username: string;
+    email: string;
+    role: string;
+    status: string;
+  } | null;
+
+  // 👇 NEW: business developer assignment
+  assignedBusinessDeveloper?: {
     _id: string;
     username: string;
     email: string;
@@ -90,6 +89,7 @@ export type LeadFilters = {
 
   source?: LeadSource;
   assignedTo?: string;
+  assignedBusinessDeveloper?: string;
   createdBy?: string;
 
   dateFrom?: DateFilterValue;
@@ -132,12 +132,7 @@ export interface LeadEvent {
   endTime: string;
   timezone: string;
   description?: string;
-  status:
-    | "scheduled"
-    | "in-progress"
-    | "completed"
-    | "canceled"
-    | "rescheduled";
+  status: "scheduled" | "in-progress" | "completed" | "canceled" | "rescheduled";
   createdAt: string;
   updatedAt: string;
 }

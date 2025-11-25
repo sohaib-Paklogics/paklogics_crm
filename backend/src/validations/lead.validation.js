@@ -10,6 +10,7 @@ export const createSchema = Joi.object({
   source: Joi.string().valid("website", "referral", "linkedin", "job_board", "other").required(),
 
   assignedTo: id.optional(),
+  assignedBusinessDeveloper: id.optional(),
   stage: id.required(), // Stage _id
   status: Joi.optional(),
 
@@ -23,6 +24,7 @@ export const updateSchema = Joi.object({
   jobDescription: Joi.string().min(3),
   source: Joi.string().valid("website", "referral", "linkedin", "job_board", "other"),
   assignedTo: Joi.alternatives().try(id, Joi.valid(null)),
+  assignedBusinessDeveloper: Joi.alternatives().try(id, Joi.valid(null)),
   stage: id,
   status: Joi.optional(),
   notes: Joi.string().allow("", null),
@@ -30,8 +32,9 @@ export const updateSchema = Joi.object({
 
 /** -------- Assign -------- */
 export const assignSchema = Joi.object({
-  assignedTo: Joi.alternatives().try(id, Joi.valid(null)).required(),
-});
+  assignedTo: Joi.alternatives().try(id, Joi.valid(null)),
+  assignedBusinessDeveloper: Joi.alternatives().try(id, Joi.valid(null)),
+}).or("assignedTo", "assignedBusinessDeveloper");
 
 /** -------- Change Stage -------- */
 export const changeStageSchema = Joi.object({
@@ -49,14 +52,16 @@ export const listQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(10),
   search: Joi.string().allow(""),
 
-  // lifecycle status filter
   status: Joi.string().valid("all", "active", "delayed", "deleted").default("all"),
 
-  // stage filter can be "all" or a valid ObjectId
   stage: Joi.alternatives().try(Joi.string().valid("all"), id).default("all"),
 
   source: Joi.string().valid("website", "referral", "linkedin", "job_board", "other"),
   assignedTo: id,
+
+  // 👇 NEW
+  assignedBusinessDeveloper: id,
+
   createdBy: id,
 
   dateFrom: Joi.date(),

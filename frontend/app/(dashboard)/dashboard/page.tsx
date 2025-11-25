@@ -4,17 +4,9 @@ import { useEffect, useMemo } from "react";
 import useAuthStore from "@/stores/auth.store";
 import { useLeadsStore } from "@/stores/leads.store";
 import { MainLayout } from "@/components/layout/main-layout";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Users, FileText, Calendar, TrendingUp, Search, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight } from "lucide-react";
 import StatsOverview from "@/components/landing/StatsOverview";
-import Image from "next/image";
 import { timeAgo } from "@/utils/TimeUtils";
 import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -23,14 +15,11 @@ import Link from "next/link";
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const { items: leads, fetch, isLoading } = useLeadsStore();
-
-  // fetch a reasonable amount for dashboard stats
+  // Fetch a reasonable amount for dashboard stats
+  // Let the backend handle role-based scoping
   useEffect(() => {
     if (!user) return;
-    const params: Record<string, any> = { page: 1, limit: 100 };
-    if (user.role === "business_developer") params.createdBy = user.id;
-    if (user.role === "developer") params.assignedTo = user.id;
-    fetch(params).catch(() => {});
+    fetch({ page: 1, limit: 100 }).catch(() => {});
   }, [user, fetch]);
 
   if (!user) {
@@ -43,46 +32,62 @@ export default function DashboardPage() {
     );
   }
 
-  // role guard on client (in case API returned more)
+  // Role guard on client (in case API returned more)
   const scopedLeads = useMemo(() => {
-    if (user.role === "admin" || user.role === "superadmin") return leads;
-    if (user.role === "business_developer") {
-      return leads.filter(
-        (l: any) =>
-          String(
-            typeof l.createdBy === "string" ? l.createdBy : l.createdBy?._id
-          ) === String(user.id)
-      );
-    }
-    // developer
-    return leads.filter(
-      (l: any) =>
-        String(
-          typeof l.assignedTo === "string" ? l.assignedTo : l.assignedTo?._id
-        ) === String(user.id)
-    );
+    if (!user) return [];
+
+    // const userIdStr = String(user.id);
+
+    // // Admin / superadmin: see everything the API returned
+    // if (user.role === "admin" || user.role === "superadmin") return leads;
+
+    // if (user.role === "business_developer") {
+    //   // BD sees:
+    //   // - leads they created
+    //   // - OR leads where they're assigned as Business Developer
+    //   return (leads || []).filter((l: any) => {
+    //     const createdById = typeof l.createdBy === "string" ? l.createdBy : l.createdBy?._id;
+
+    //     const bdId =
+    //       typeof l.assignedBusinessDeveloper === "string"
+    //         ? l.assignedBusinessDeveloper
+    //         : l.assignedBusinessDeveloper?._id;
+
+    //     return String(createdById) === userIdStr || String(bdId) === userIdStr;
+    //   });
+    // }
+
+    // // Developer: leads assigned to them (and optionally those they created)
+    // if (user.role === "developer") {
+    //   return (leads || []).filter((l: any) => {
+    //     const assignedToId = typeof l.assignedTo === "string" ? l.assignedTo : l.assignedTo?._id;
+
+    //     const createdById = typeof l.createdBy === "string" ? l.createdBy : l.createdBy?._id;
+
+    //     // If you only want "assigned to me", drop the createdBy part
+    //     return String(assignedToId) === userIdStr || String(createdById) === userIdStr;
+    //   });
+    // }
+
+    // Fallback: for any other role, just return what API gave
+    return leads;
   }, [leads, user]);
 
   const stats = useMemo(() => {
     const total = scopedLeads.length;
+
+    // NOTE: if your Lead status is an object { value }, adapt as needed:
+    // const newLeads = scopedLeads.filter((l: any) => l.status?.value === "new").length;
     const newLeads = scopedLeads.filter((l: any) => l.status === "new").length;
-    const interviewScheduled = scopedLeads.filter(
-      (l: any) => l.status === "interview_scheduled"
-    ).length;
-    const completed = scopedLeads.filter(
-      (l: any) => l.status === "completed"
-    ).length;
+    const interviewScheduled = scopedLeads.filter((l: any) => l.status === "interview_scheduled").length;
+    const completed = scopedLeads.filter((l: any) => l.status === "completed").length;
+
     return { total, newLeads, interviewScheduled, completed };
   }, [scopedLeads]);
 
   const recent = useMemo(
-    () =>
-      [...scopedLeads]
-        .sort(
-          (a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt)
-        )
-        .slice(0, 5),
-    [scopedLeads]
+    () => [...scopedLeads].sort((a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 5),
+    [scopedLeads],
   );
 
   const getGreeting = () => {
@@ -135,7 +140,7 @@ export default function DashboardPage() {
               {isLoading && <p className="text-sm text-gray-500">Loading…</p>}
 
               {!isLoading &&
-                recent.map((lead) => {
+                recent.map((lead: any) => {
                   return (
                     <div
                       key={lead._id}

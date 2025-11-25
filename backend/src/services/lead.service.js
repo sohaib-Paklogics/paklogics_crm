@@ -13,17 +13,70 @@ export async function createLead(data) {
   return doc;
 }
 
-export async function getLeads(query) {
+export async function getLeads(query, currentUser = null) {
   const { skip, limit, page } = getPagination(query.page, query.limit);
-  console.log("query", query);
-  const filter = buildFilter(query);
-  console.log("filter", filter);
+
+  // Base filter from query (status, stage, search, dates, etc.)
+  const baseFilter = buildFilter(query);
+
   const sort = { [query.sort || "createdAt"]: query.order === "asc" ? 1 : -1 };
 
+  // 🔹 Tweak baseFilter for business_developer
+  if (currentUser?.role === "business_developer") {
+    const userId = currentUser._id ?? currentUser.id;
+    const userIdStr = String(userId);
+
+    // If frontend sent assignedTo=..., that's dev semantics; ignore for BD
+    if (baseFilter.assignedTo) {
+      delete baseFilter.assignedTo;
+    }
+
+    // If frontend sent createdBy=<current BD>, we want:
+    //   "assignedBusinessDeveloper = me OR createdBy = me"
+    // not just "createdBy = me", so we remove this and let role-based OR handle it
+    if (baseFilter.createdBy && String(baseFilter.createdBy) === userIdStr) {
+      delete baseFilter.createdBy;
+    }
+  }
+
+  let finalFilter = { ...baseFilter };
+
+  // 🔹 Role-based visibility
+  if (currentUser) {
+    const userId = currentUser._id ?? currentUser.id;
+
+    const roleOrClauses =
+      currentUser.role === "developer"
+        ? [
+            // Developer sees leads assigned as dev OR created by them
+            { assignedTo: userId },
+            { createdBy: userId },
+          ]
+        : currentUser.role === "business_developer"
+          ? [
+              // Business Developer sees leads assigned as BD OR created by them
+              { assignedBusinessDeveloper: userId },
+              { createdBy: userId },
+            ]
+          : null;
+
+    if (roleOrClauses) {
+
+      // (baseFilter) AND (roleOrClauses)
+      finalFilter = {
+        $and: [baseFilter, { $or: roleOrClauses }],
+      };
+    }
+  }
+
+  // Helpful debug (optional)
+  // console.log("finalFilter", JSON.stringify(finalFilter, null, 2));
+
   const [total, rows] = await Promise.all([
-    Lead.countDocuments(filter),
-    Lead.find(filter)
+    Lead.countDocuments(finalFilter),
+    Lead.find(finalFilter)
       .populate("assignedTo", "username email role status")
+      .populate("assignedBusinessDeveloper", "username email role status")
       .populate("createdBy", "username email")
       .populate("stage", "name color")
       .sort(sort)
@@ -38,15 +91,16 @@ export async function getLeads(query) {
 export async function getLeadById(id) {
   const lead = await Lead.findById(id)
     .populate("assignedTo", "username email role status")
+    .populate("assignedBusinessDeveloper", "username email role status")
     .populate("createdBy", "username email")
     .populate("stage", "name color")
     .lean();
+
   if (!lead || lead.deletedAt) throw new ApiError(404, "Lead not found");
   return lead;
 }
 
 export async function updateLead(id, data) {
-  // Do NOT allow direct lifecycle writes here if your validator forbids it
   if ("status" in data) {
     delete data.status;
   }
@@ -67,8 +121,17 @@ export async function deleteLead(id) {
   return { id, deletedAt: deleted.deletedAt };
 }
 
-export async function assignLead(id, assignedTo) {
-  const payload = { assignedTo };
+export async function assignLead(id, { assignedTo, assignedBusinessDeveloper }) {
+  const payload = {};
+
+  // Only set fields that were actually provided (can be null)
+  if (typeof assignedTo !== "undefined") {
+    payload.assignedTo = assignedTo;
+  }
+  if (typeof assignedBusinessDeveloper !== "undefined") {
+    payload.assignedBusinessDeveloper = assignedBusinessDeveloper;
+  }
+
   const updated = await Lead.findOneAndUpdate({ _id: id, deletedAt: { $exists: false } }, payload, { new: true });
   if (!updated) throw new ApiError(404, "Lead not found");
   return updated;
@@ -93,7 +156,6 @@ export async function changeStage(id, status) {
   // Guard transitions
   const nexts = ALLOWED_TRANSITIONS[lead.status] || [];
   if (!nexts.includes(status)) {
-    // You can loosen this if you want free-form board moves:
     throw new ApiError(400, `Illegal transition: ${lead.status} -> ${status}`);
   }
 
@@ -102,7 +164,6 @@ export async function changeStage(id, status) {
   return lead;
 }
 
-// services/lead.service.js
 export async function updateLeadStatus(id, newStatus, userId) {
   if (!["new", "active", "delayed", "completed", "deleted"].includes(newStatus)) {
     throw new ApiError(400, "Invalid status");
