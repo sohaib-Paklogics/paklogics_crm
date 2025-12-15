@@ -8,6 +8,9 @@ const router = express.Router();
 router.post("/login", adminController.login);
 router.get("/get-me", protect, adminController.getMe);
 
+router.patch("/me", protect, adminController.updateMyProfile);
+router.patch("/me/password", protect, adminController.changeMyPassword);
+
 // Admin user management routes (requires admin role)
 router.post("/add-user", adminController.createAdminUser);
 router.get("/", protect, authorize("admin", "superadmin"), adminController.getAdminUsers);

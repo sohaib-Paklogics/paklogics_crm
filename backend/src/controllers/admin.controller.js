@@ -94,7 +94,36 @@ export const deleteAdminUser = asyncHandler(async (req, res) => {
 
 export const changeAdminPassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  const adminId = req.params.id;
-  const result = await service.changeAdminPasswordService(adminId, currentPassword, newPassword);
+  const targetUserId = req.params.id;
+
+  // if changing someone else, admin can skip current password check
+  const skipCurrentPassword = String(req.user?.id) !== String(targetUserId);
+
+  const result = await service.changeAdminPasswordService(
+    targetUserId,
+    currentPassword,
+    newPassword,
+    skipCurrentPassword,
+  );
+
   res.json(ApiResponse.success(result, "Password changed successfully"));
+});
+
+export const updateMyProfile = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user.id) throw new ApiError(401, "Unauthorized");
+
+  const data = await validator.updateMeSchema.validateAsync(req.body);
+  const updated = await service.updateMyProfile(req.user.id, data);
+
+  return res.json(ApiResponse.success(updated, "Profile updated successfully"));
+});
+
+export const changeMyPassword = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user.id) throw new ApiError(401, "Unauthorized");
+
+  const { currentPassword, newPassword } = await validator.changeMyPasswordSchema.validateAsync(req.body);
+
+  const result = await service.changeMyPassword(req.user.id, currentPassword, newPassword);
+
+  return res.json(ApiResponse.success(result, "Password changed successfully"));
 });

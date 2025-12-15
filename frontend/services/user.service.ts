@@ -66,10 +66,10 @@ export const userService = {
   },
 
   // 🔹 Change admin password
-  changePassword: async (id: string, currentPassword: string, newPassword: string): Promise<ApiResponse> => {
-    const response = await api.put<ApiResponse>(`/admin-auth/${id}/change-password`, {
-      currentPassword,
+  changePassword: async (id: string, newPassword: string, currentPassword?: string): Promise<ApiResponse> => {
+    const response = await api.patch<ApiResponse>(`/admin-auth/${id}/password`, {
       newPassword,
+      ...(currentPassword ? { currentPassword } : {}),
     });
     return response.data;
   },

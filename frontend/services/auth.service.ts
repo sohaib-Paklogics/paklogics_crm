@@ -59,10 +59,7 @@ export const authService = {
     return response.data;
   },
 
-  resetPassword: async (
-    token: string,
-    password: string
-  ): Promise<ApiResponse> => {
+  resetPassword: async (token: string, password: string): Promise<ApiResponse> => {
     const response = await api.post<ApiResponse>("/auth/reset-password", {
       token,
       password,
@@ -70,14 +67,13 @@ export const authService = {
     return response.data;
   },
 
-  updateProfile: async (data: { username: string; email: string }) => {
-    return await api.put("/auth/update-profile", data);
+  updateProfile: async (data: { username?: string; email?: string }): Promise<ApiResponse> => {
+    const response = await api.patch<ApiResponse>("/admin-auth/me", data);
+    return response.data;
   },
 
-  changePassword: async (data: {
-    currentPassword: string;
-    newPassword: string;
-  }) => {
-    return await api.post("/auth/change-password", data);
+  changePassword: async (data: { currentPassword: string; newPassword: string }): Promise<ApiResponse> => {
+    const response = await api.patch<ApiResponse>("/admin-auth/me/password", data);
+    return response.data;
   },
 };

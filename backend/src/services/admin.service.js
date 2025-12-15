@@ -136,15 +136,57 @@ export async function deleteAdminUser(id) {
   return result;
 }
 
-export const changeAdminPasswordService = async (adminId, currentPassword, newPassword) => {
+export const changeAdminPasswordService = async (
+  adminId,
+  currentPassword,
+  newPassword,
+  skipCurrentPassword = false,
+) => {
   const admin = await AdminUser.findById(adminId);
   if (!admin) throw new ApiError(404, "Admin not found");
 
-  const isMatch = await bcrypt.compare(currentPassword, admin.password);
-  if (!isMatch) throw new ApiError(400, "Current password is incorrect");
+  // if user is changing their own password, require current password
+  if (!skipCurrentPassword) {
+    if (!currentPassword) throw new ApiError(400, "Current password is required");
+
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+    if (!isMatch) throw new ApiError(400, "Current password is incorrect");
+  }
 
   admin.password = await bcrypt.hash(newPassword, 10);
   await admin.save();
 
   return { message: "Password updated successfully" };
 };
+
+export async function updateMyProfile(userId, data) {
+  const update = {};
+
+  // allowlist fields (avoid role/status/permissions updates from this endpoint)
+  if (typeof data.username === "string") update.username = data.username;
+  if (typeof data.email === "string") update.email = data.email;
+
+  // if email is changing, ensure it's not used by another user
+  if (update.email) {
+    const exists = await AdminUser.findOne({ email: update.email, _id: { $ne: userId } });
+    if (exists) throw new ApiError(400, "Email already in use");
+  }
+
+  const updated = await AdminUser.findByIdAndUpdate(userId, update, { new: true }).select("-password");
+  if (!updated) throw new ApiError(404, "User not found");
+
+  return updated;
+}
+
+export async function changeMyPassword(userId, currentPassword, newPassword) {
+  const user = await AdminUser.findById(userId);
+  if (!user) throw new ApiError(404, "User not found");
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) throw new ApiError(400, "Current password is incorrect");
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  return { message: "Password updated successfully" };
+}

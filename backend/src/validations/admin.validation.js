@@ -1,4 +1,3 @@
-
 import Joi from "joi";
 
 export const loginSchema = Joi.object({
@@ -22,4 +21,14 @@ export const updateSchema = Joi.object({
   role: Joi.string().valid("superadmin", "admin", "business_developer", "developer"),
   status: Joi.string().valid("active", "inactive", "suspended"),
   permissions: Joi.array().items(Joi.string()),
+});
+
+export const updateMeSchema = Joi.object({
+  username: Joi.string().min(2).max(50).optional(),
+  email: Joi.string().email().optional(),
+}).min(1); // require at least one field
+
+export const changeMyPasswordSchema = Joi.object({
+  currentPassword: Joi.string().required(),
+  newPassword: Joi.string().min(8).required(),
 });
